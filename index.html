@@ -753,7 +753,7 @@ function renderGlance(){
 
 function renderBabyCard(b,idx){
   const c=getBabyColor(b.id,idx);
-  const ents=(S.entries[S.curDate]||{})[b.id]||[];
+  const ents=[...(S.entries[S.curDate]||{})[b.id]||[]].sort((a,b)=>b.time.localeCompare(a.time));
   const milkMl=ents.filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
   const urine=ents.filter(e=>e.type==='urine').length;
   const potty=ents.filter(e=>e.type==='potty').length;
