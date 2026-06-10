@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Baby Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#111827;--muted:#6b7280;--radius:14px;--nav:62px;--pink-l:#fdf2f8;--pink-m:#fbcfe8;--pink-d:#be185d;--blue-l:#eff6ff;--blue-m:#bfdbfe;--blue-d:#1d4ed8;--green-l:#f0fdf4;--green-m:#bbf7d0;--green-d:#166534;--orange-l:#fff7ed;--orange-m:#fed7aa;--orange-d:#c2410c;--purple-l:#faf5ff;--purple-m:#e9d5ff;--purple-d:#7e22ce}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+input,select,textarea,button{font-family:inherit;font-size:16px}
+button{cursor:pointer;border:none;background:none}
+a{cursor:pointer;color:#4f46e5;text-decoration:none}
+.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:10px;font-weight:600;font-size:15px;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-primary{background:#4f46e5;color:#fff}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:13px;border-radius:8px}
+.input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);outline:none;transition:border .15s}
+.input:focus{border-color:#4f46e5}
+label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-admin{background:#fef3c7;color:#92400e}
+.badge-member{background:#f3f4f6;color:var(--muted)}
+/* spinner */
+.spinner{width:36px;height:36px;border:3px solid #e5e7eb;border-top-color:#4f46e5;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* toast */
+#toast{position:fixed;bottom:calc(var(--nav)+12px);left:50%;transform:translateX(-50%) translateY(20px);background:#1f2937;color:#fff;padding:10px 20px;border-radius:10px;font-size:14px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* bottom nav */
+#nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav);background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+#nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;color:var(--muted);padding:0}
+#nav button.active{color:#4f46e5}
+#nav button span.icon{font-size:20px}
+/* sticky header */
+.sticky-header{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.sticky-header h2{flex:1;font-size:17px;font-weight:700}
+.sticky-header .sub{font-size:12px;color:var(--muted);font-weight:400}
+/* main content */
+#main{padding:12px 16px;padding-bottom:calc(var(--nav) + 8px)}
+/* date nav */
+.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.date-nav .date-label{flex:1;text-align:center;font-weight:700;font-size:15px}
+/* glance bar */
+.glance{display:flex;gap:10px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.glance::-webkit-scrollbar{display:none}
+.glance-item{flex:0 0 auto;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;text-align:center;min-width:72px}
+.glance-item .g-val{font-size:18px;font-weight:700}
+.glance-item .g-lbl{font-size:11px;color:var(--muted)}
+/* baby grid */
+.baby-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:500px){.baby-grid{grid-template-columns:1fr}}
+/* baby card */
+.baby-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
+.baby-card-head{padding:12px 14px;display:flex;align-items:center;gap:8px}
+.baby-card-head .bname{font-weight:700;font-size:15px}
+.baby-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.baby-chips span{font-size:12px;padding:2px 8px;border-radius:20px;font-weight:600}
+.baby-log{max-height:180px;overflow-y:auto;padding:0 14px;scrollbar-width:thin}
+.log-entry{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px}
+.log-entry:last-child{border-bottom:none}
+.log-entry .log-time{color:var(--muted);min-width:38px;font-size:12px}
+.log-entry .log-desc{flex:1}
+.log-entry .del-btn{color:#ef4444;font-size:16px;line-height:1;padding:2px 4px}
+/* add entry area */
+.add-area{padding:10px 14px;border-top:1px solid var(--border)}
+.type-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.pill{padding:5px 10px;border-radius:20px;font-size:13px;border:1px solid var(--border);background:#f9fafb}
+.pill.active{background:#4f46e5;color:#fff;border-color:#4f46e5}
+.add-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.add-row input{flex:1;min-width:60px}
+/* auth */
+.auth-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);padding:20px}
+.auth-card{background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.auth-card h1{font-size:24px;font-weight:800;margin-bottom:4px}
+.auth-card .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+.auth-tabs{display:flex;gap:4px;background:#f3f4f6;border-radius:10px;padding:4px;margin-bottom:20px}
+.auth-tab{flex:1;padding:8px;border-radius:8px;font-size:14px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer}
+.auth-tab.active{background:#fff;color:#4f46e5;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.field{margin-bottom:16px}
+.invite-banner{background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;padding:12px;margin-bottom:16px;font-size:14px;color:#065f46}
+/* families */
+.families-bg{min-height:100vh;background:var(--bg);padding:0}
+.families-header{background:#fff;border-bottom:1px solid var(--border);padding:16px;display:flex;align-items:center;justify-content:space-between}
+.fam-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
+@media(max-width:500px){.fam-grid{grid-template-columns:1fr}}
+.fam-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:box-shadow .15s}
+.fam-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.fam-card.new-card{border-style:dashed;border-color:#c7d2fe;background:#f5f3ff;text-align:center;color:#4f46e5}
+.fam-card.new-card .plus{font-size:28px;margin-bottom:4px}
+/* setup */
+.setup-wrap{min-height:100vh;background:var(--bg);padding:20px}
+.baby-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.baby-row input[type=text]{flex:1;min-width:100px}
+.emoji-sel{padding:8px 6px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:16px}
+/* growth */
+.meas-table{width:100%;border-collapse:collapse;font-size:13px}
+.meas-table th{text-align:left;padding:6px 8px;background:#f9fafb;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);text-transform:uppercase}
+.meas-table td{padding:6px 8px;border-bottom:1px solid var(--border)}
+/* summary */
+.sum-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}
+.sum-table th,.sum-table td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:left}
+.sum-table th{font-size:11px;color:var(--muted);text-transform:uppercase;background:#f9fafb}
+.bar-wrap{display:flex;align-items:center;gap:4px}
+.bar{height:14px;border-radius:4px;min-width:2px}
+/* settings */
+.member-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.member-avatar{width:36px;height:36px;border-radius:50%;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:18px}
+.member-info{flex:1}
+.member-name{font-weight:600;font-size:14px}
+.member-email{font-size:12px;color:var(--muted)}
+.invite-link-box{background:#f3f4f6;border-radius:8px;padding:10px;font-size:12px;word-break:break-all;color:#4f46e5;margin-top:8px}
+/* section title */
+.section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script>
+// ─── Config ─────────────────────────────────────────────────
+const SUPA_URL = 'https://YOUR_PROJECT_REF.supabase.co';
+const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const BASE_URL = 'https://rafehjeelani.github.io/baby-tracker';
+
+// ─── State ──────────────────────────────────────────────────
+let S = {
+  screen:'loading', authMode:'signin', user:null, profile:null,
+  families:[], family:null, members:[], babies:[],
+  entries:{}, meas:{}, vax:{}, notes:{},
+  curDate:today(), selType:{}, tab:'daily',
+  pendingInvite:null, invitePreview:null
+};
+
+// ─── Helpers ────────────────────────────────────────────────
+function app(){ return document.getElementById('app'); }
+function today(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDate(d){
+  if(d===today()) return 'Today';
+  const dt=new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function nowTime(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+let _toastTimer;
+function toast(msg,dur=3000){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>t.classList.remove('show'),dur);
+}
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+const COLORS=[
+  {l:'var(--pink-l)',m:'var(--pink-m)',d:'var(--pink-d)'},
+  {l:'var(--blue-l)',m:'var(--blue-m)',d:'var(--blue-d)'},
+  {l:'var(--green-l)',m:'var(--green-m)',d:'var(--green-d)'},
+  {l:'var(--orange-l)',m:'var(--orange-m)',d:'var(--orange-d)'},
+  {l:'var(--purple-l)',m:'var(--purple-m)',d:'var(--purple-d)'}
+];
+const CHART_COLORS=['#f97316','#60a5fa','#22c55e','#a855f7','#ec4899'];
+const BABY_EMOJIS=['🌸','⭐','🐻','🦋','🌺','🚀','🐣','🦁','🌼','🐧','🍒','🎀'];
+const TYPES=[
+  {k:'milk',icon:'🍼',label:'Milk'},
+  {k:'urine',icon:'💧',label:'Urine'},
+  {k:'potty',icon:'💩',label:'Potty'},
+  {k:'vitamin',icon:'💊',label:'Vitamin'},
+  {k:'medicine',icon:'🩹',label:'Medicine'}
+];
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── Supabase ────────────────────────────────────────────────
+let sb;
+function initSupa(){
+  sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+}
+
+async function loadProfile(){
+  const {data,error}=await sb.from('profiles').select('*').eq('id',S.user.id).single();
+  if(error) throw error;
+  S.profile=data;
+}
+
+async function loadFamilies(){
+  const {data,error}=await sb.from('family_members')
+    .select('role, families(*)')
+    .eq('user_id',S.user.id);
+  if(error) throw error;
+  S.families=(data||[]).map(r=>({...r.families, myRole:r.role}));
+}
+
+async function openFamily(fam){
+  S.family=fam;
+  S.tab='daily';
+  S.entries={};
+  S.meas={};
+  S.vax={};
+  S.notes={};
+  await Promise.all([loadMembers(),loadBabies()]);
+  await Promise.all([loadEntries(S.curDate),loadMeasurements(),loadVaccines()]);
+  show('tracker');
+}
+
+async function createFamily(name, babies){
+  const {data:fam,error:fe}=await sb.from('families').insert({name,created_by:S.user.id}).select().single();
+  if(fe) throw fe;
+  const {error:me}=await sb.from('family_members').insert({family_id:fam.id,user_id:S.user.id,role:'admin'});
+  if(me) throw me;
+  const brows=babies.filter(b=>b.name.trim()).map(b=>({family_id:fam.id,name:b.name.trim(),emoji:b.emoji,dob:b.dob||null}));
+  if(brows.length){
+    const {error:be}=await sb.from('babies').insert(brows);
+    if(be) throw be;
+  }
+  await loadFamilies();
+  await openFamily(S.families.find(f=>f.id===fam.id)||{...fam,myRole:'admin'});
+}
+
+async function loadMembers(){
+  const {data,error}=await sb.from('family_members')
+    .select('id,role,user_id,profiles(id,full_name,email,avatar)')
+    .eq('family_id',S.family.id);
+  if(error) throw error;
+  S.members=(data||[]).map(r=>({...r.profiles,memberId:r.id,role:r.role}));
+}
+
+async function loadBabies(){
+  const {data,error}=await sb.from('babies').select('*').eq('family_id',S.family.id).order('created_at');
+  if(error) throw error;
+  S.babies=data||[];
+}
+
+async function addBaby(name,emoji,dob){
+  const {error}=await sb.from('babies').insert({family_id:S.family.id,name,emoji,dob:dob||null});
+  if(error) throw error;
+  await loadBabies();
+}
+
+async function deleteBaby(id){
+  if(!confirm('Delete this baby and all their data?')) return;
+  const {error}=await sb.from('babies').delete().eq('id',id);
+  if(error) throw error;
+  await loadBabies();
+  toast('Baby removed');
+}
+
+async function removeMember(memberId, userId){
+  if(userId===S.user.id){toast('Leave via Switch Family');return;}
+  if(!confirm('Remove this member?')) return;
+  const {error}=await sb.from('family_members').delete().eq('id',memberId);
+  if(error) throw error;
+  await loadMembers();
+  toast('Member removed');
+}
+
+async function loadEntries(date){
+  const {data,error}=await sb.from('entries').select('*')
+    .eq('family_id',S.family.id).eq('date',date).order('time');
+  if(error) throw error;
+  if(!S.entries[date]) S.entries[date]={};
+  S.babies.forEach(b=>{
+    S.entries[date][b.id]=(data||[]).filter(e=>e.baby_id===b.id);
+  });
+}
+
+async function addEntry(babyId,type,time,ml,note){
+  const {error}=await sb.from('entries').insert({
+    baby_id:babyId, family_id:S.family.id, date:S.curDate,
+    time, type, ml:ml||null, note:note||null, created_by:S.user.id
+  });
+  if(error) throw error;
+  await loadEntries(S.curDate);
+}
+
+async function deleteEntry(id,babyId){
+  const {error}=await sb.from('entries').delete().eq('id',id);
+  if(error) throw error;
+  const date=S.curDate;
+  if(S.entries[date]&&S.entries[date][babyId]){
+    S.entries[date][babyId]=S.entries[date][babyId].filter(e=>e.id!==id);
+  }
+}
+
+async function loadMeasurements(){
+  const {data,error}=await sb.from('measurements').select('*')
+    .eq('family_id',S.family.id).order('date',{ascending:false});
+  if(error) throw error;
+  S.meas={};
+  S.babies.forEach(b=>{
+    S.meas[b.id]=(data||[]).filter(m=>m.baby_id===b.id);
+  });
+}
+
+async function addMeasurement(babyId,date,mtype,value){
+  const {error}=await sb.from('measurements').insert({
+    baby_id:babyId, family_id:S.family.id, date, mtype, value, created_by:S.user.id
+  });
+  if(error) throw error;
+  await loadMeasurements();
+}
+
+async function deleteMeasurement(id,babyId){
+  const {error}=await sb.from('measurements').delete().eq('id',id);
+  if(error) throw error;
+  if(S.meas[babyId]) S.meas[babyId]=S.meas[babyId].filter(m=>m.id!==id);
+}
+
+async function loadVaccines(){
+  const {data,error}=await sb.from('vaccines').select('*')
+    .eq('family_id',S.family.id).order('date',{ascending:false});
+  if(error) throw error;
+  S.vax={};
+  S.babies.forEach(b=>{
+    S.vax[b.id]=(data||[]).filter(v=>v.baby_id===b.id);
+  });
+}
+
+async function addVaccine(babyId,date,name,note){
+  const {error}=await sb.from('vaccines').insert({
+    baby_id:babyId, family_id:S.family.id, date, name, note:note||null, created_by:S.user.id
+  });
+  if(error) throw error;
+  await loadVaccines();
+}
+
+async function deleteVaccine(id,babyId){
+  const {error}=await sb.from('vaccines').delete().eq('id',id);
+  if(error) throw error;
+  if(S.vax[babyId]) S.vax[babyId]=S.vax[babyId].filter(v=>v.id!==id);
+}
+
+async function loadNote(date){
+  if(S.notes[date]!==undefined) return;
+  const {data}=await sb.from('daily_notes').select('content')
+    .eq('family_id',S.family.id).eq('date',date).maybeSingle();
+  S.notes[date]=data?data.content:'';
+}
+
+async function saveNote(date,content){
+  S.notes[date]=content;
+  const {error}=await sb.from('daily_notes').upsert(
+    {family_id:S.family.id,date,content,updated_by:S.user.id,updated_at:new Date().toISOString()},
+    {onConflict:'family_id,date'}
+  );
+  if(error) toast('Note save failed');
+}
+
+async function generateInvite(){
+  const {data,error}=await sb.from('invitations').insert({
+    family_id:S.family.id, invited_by:S.user.id, role:'member'
+  }).select('token').single();
+  if(error) throw error;
+  return `${BASE_URL}?invite=${data.token}`;
+}
+
+async function loadInvitePreview(token){
+  const {data}=await sb.from('invitations')
+    .select('families(name)')
+    .eq('token',token).eq('status','pending').maybeSingle();
+  if(data&&data.families) S.invitePreview={familyName:data.families.name};
+}
+
+async function acceptInvite(token){
+  const {data,error}=await sb.rpc('accept_invitation',{invite_token:token});
+  if(error) throw error;
+  if(data&&data.error) throw new Error(data.error);
+  return data;
+}
+
+// ─── Rendering ──────────────────────────────────────────────
+function show(screen){ S.screen=screen; renderApp(); }
+
+function renderApp(){
+  const a=app();
+  if(S.screen==='loading'){ renderLoading(a); return; }
+  if(S.screen==='auth'){ renderAuth(a); return; }
+  if(S.screen==='families'){ renderFamilies(a); return; }
+  if(S.screen==='setup'){ renderSetup(a); return; }
+  if(S.screen==='tracker'){ renderTracker(a); return; }
+}
+
+// Setup check
+function checkSetup(){
+  if(SUPA_URL.includes('YOUR_')||SUPA_KEY.includes('YOUR_')){
+    app().innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#4f46e5,#7c3aed)">
+    <div style="background:#fff;border-radius:20px;padding:32px;max-width:420px;text-align:center;margin:20px">
+      <div style="font-size:48px;margin-bottom:16px">🍼</div>
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:8px">Setup Required</h2>
+      <p style="color:#6b7280;margin-bottom:16px">Replace <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">SUPA_URL</code> and <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">SUPA_KEY</code> in <code>index.html</code> with your Supabase project credentials.</p>
+      <p style="color:#6b7280;font-size:13px">Find them in: Supabase Dashboard → Settings → API</p>
+    </div></div>`;
+    return true;
+  }
+  return false;
+}
+
+function renderLoading(a){
+  a.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;min-height:100vh"><div class="spinner"></div></div>`;
+}
+
+function renderAuth(a){
+  const inv=S.invitePreview;
+  a.innerHTML=`<div class="auth-bg"><div class="auth-card">
+    <div style="text-align:center;margin-bottom:16px"><span style="font-size:40px">🍼</span></div>
+    <h1>Baby Tracker</h1>
+    <p class="sub">Track feeding, growth & more</p>
+    ${inv?`<div class="invite-banner">🎉 You've been invited to join <strong>${esc(inv.familyName)}</strong>. Sign in or create an account to accept.</div>`:''}
+    ${S.authMode==='forgot'?renderForgot():renderAuthForm()}
+  </div></div>`;
+  bindAuthEvents();
+}
+
+function renderForgot(){
+  return `<div class="field"><label>Email</label><input class="input" id="af-email" type="email" placeholder="you@email.com"/></div>
+  <button class="btn btn-primary" style="width:100%" id="af-send">Send Reset Email</button>
+  <div style="text-align:center;margin-top:12px;font-size:14px"><a onclick="S.authMode='signin';renderApp()">← Back to Sign In</a></div>`;
+}
+
+function renderAuthForm(){
+  const isIn=S.authMode==='signin';
+  return `<div class="auth-tabs">
+    <div class="auth-tab ${isIn?'active':''}" onclick="S.authMode='signin';renderApp()">Sign In</div>
+    <div class="auth-tab ${!isIn?'active':''}" onclick="S.authMode='signup';renderApp()">Sign Up</div>
+  </div>
+  ${!isIn?`<div class="field"><label>Full Name</label><input class="input" id="af-name" type="text" placeholder="Jane Doe"/></div>`:''}
+  <div class="field"><label>Email</label><input class="input" id="af-email" type="email" placeholder="you@email.com"/></div>
+  <div class="field"><label>Password</label><input class="input" id="af-pass" type="password" placeholder="••••••••"/></div>
+  <button class="btn btn-primary" style="width:100%;margin-top:4px" id="af-submit">${isIn?'Sign In':'Create Account'}</button>
+  ${isIn?`<div style="text-align:center;margin-top:12px;font-size:14px"><a onclick="S.authMode='forgot';renderApp()">Forgot password?</a></div>`:''}`;
+}
+
+function bindAuthEvents(){
+  const onKey=e=>{if(e.key==='Enter') document.getElementById('af-submit')?.click()||document.getElementById('af-send')?.click();};
+  document.querySelectorAll('.auth-card input').forEach(i=>i.addEventListener('keydown',onKey));
+
+  const send=document.getElementById('af-send');
+  if(send) send.onclick=async()=>{
+    const email=document.getElementById('af-email').value.trim();
+    if(!email){toast('Enter your email');return;}
+    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:BASE_URL});
+    if(error){toast(error.message);return;}
+    toast('Reset email sent! Check your inbox.');
+  };
+
+  const sub=document.getElementById('af-submit');
+  if(!sub) return;
+  sub.onclick=async()=>{
+    const email=document.getElementById('af-email')?.value.trim()||'';
+    const pass=document.getElementById('af-pass')?.value||'';
+    if(!email||!pass){toast('Please fill all fields');return;}
+    sub.disabled=true; sub.textContent='…';
+    if(S.authMode==='signin'){
+      const {error}=await sb.auth.signInWithPassword({email,password:pass});
+      if(error){toast(error.message);sub.disabled=false;sub.textContent='Sign In';return;}
+    } else {
+      const name=document.getElementById('af-name')?.value.trim()||'';
+      const {error}=await sb.auth.signUp({email,password:pass,options:{data:{full_name:name}}});
+      if(error){toast(error.message);sub.disabled=false;sub.textContent='Create Account';return;}
+      document.querySelector('.auth-card').innerHTML=`<div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:12px">📧</div><h2 style="font-weight:800">Check your email</h2><p style="color:#6b7280;margin-top:8px">We sent a confirmation link to <strong>${esc(email)}</strong></p><a onclick="S.authMode='signin';renderApp()" style="display:block;margin-top:16px">← Back to Sign In</a></div>`;
+      return;
+    }
+  };
+}
+
+function renderFamilies(a){
+  const cards=S.families.map(f=>`<div class="fam-card" onclick="handleOpenFamily('${f.id}')">
+    <div style="font-size:24px;margin-bottom:6px">🏠</div>
+    <div style="font-weight:700;font-size:16px">${esc(f.name)}</div>
+    <div style="margin-top:6px"><span class="badge ${f.myRole==='admin'?'badge-admin':'badge-member'}">${f.myRole==='admin'?'👑 Admin':'👤 Member'}</span></div>
+  </div>`).join('');
+  a.innerHTML=`<div class="families-bg">
+    <div class="families-header">
+      <div><div style="font-weight:700;font-size:17px">👋 ${esc(S.profile?.full_name||'Welcome')}</div><div style="font-size:13px;color:var(--muted)">${esc(S.profile?.email||'')}</div></div>
+      <button class="btn btn-outline btn-sm" onclick="sb.auth.signOut()">Sign Out</button>
+    </div>
+    <div class="fam-grid">
+      ${cards}
+      <div class="fam-card new-card" onclick="show('setup')">
+        <div class="plus">+</div>
+        <div style="font-weight:700">Create new family</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function handleOpenFamily(id){
+  const fam=S.families.find(f=>f.id===id);
+  if(!fam) return;
+  try{ await openFamily(fam); }catch(e){ toast(e.message); }
+}
+
+function renderSetup(a){
+  const emojiOpts=BABY_EMOJIS.map(e=>`<option value="${e}">${e}</option>`).join('');
+  a.innerHTML=`<div class="setup-wrap">
+    <div style="max-width:520px;margin:0 auto">
+      ${S.families.length?`<a onclick="show('families')" style="display:inline-block;margin-bottom:16px;font-size:14px">← Back</a>`:''}
+      <h2 style="font-size:22px;font-weight:800;margin-bottom:4px">Create Your Family</h2>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:20px">Set up your family profile and add your babies</p>
+      <div class="card" style="margin-bottom:16px">
+        <div class="field"><label>Family Name</label><input class="input" id="s-famname" type="text" placeholder="e.g. The Smiths"/></div>
+      </div>
+      <div class="section-title">Babies</div>
+      <div id="baby-rows">
+        ${[0,1].map(i=>babyRowHTML(i,emojiOpts)).join('')}
+      </div>
+      <button class="btn btn-outline btn-sm" id="add-baby-row" style="margin-bottom:20px">+ Add another baby</button>
+      <button class="btn btn-primary" style="width:100%;padding:14px" id="create-fam">Create Family →</button>
+    </div>
+  </div>`;
+  bindSetupEvents(emojiOpts);
+}
+
+function babyRowHTML(i,emojiOpts){
+  return `<div class="card baby-row-card" style="margin-bottom:10px" data-idx="${i}">
+    <div class="baby-row">
+      <input class="input br-name" type="text" placeholder="Baby name" style="flex:1"/>
+      <select class="emoji-sel br-emoji">${emojiOpts}</select>
+      <input class="input br-dob" type="date" style="width:140px"/>
+      ${i>=2?`<button class="btn btn-danger btn-sm br-remove" style="padding:8px 10px">✕</button>`:''}
+    </div>
+  </div>`;
+}
+
+function bindSetupEvents(emojiOpts){
+  let count=2;
+  document.getElementById('add-baby-row').onclick=()=>{
+    if(count>=5){toast('Max 5 babies');return;}
+    const div=document.createElement('div');
+    div.innerHTML=babyRowHTML(count,emojiOpts);
+    document.getElementById('baby-rows').appendChild(div.firstChild);
+    count++;
+    document.querySelectorAll('.br-remove').forEach(b=>b.onclick=e=>e.target.closest('.baby-row-card').remove());
+  };
+  document.querySelectorAll('.br-remove').forEach(b=>b.onclick=e=>e.target.closest('.baby-row-card').remove());
+  document.getElementById('create-fam').onclick=async()=>{
+    const name=document.getElementById('s-famname').value.trim();
+    if(!name){toast('Enter family name');return;}
+    const rows=[...document.querySelectorAll('.baby-row-card')];
+    const babies=rows.map(r=>({
+      name:r.querySelector('.br-name').value.trim(),
+      emoji:r.querySelector('.br-emoji').value,
+      dob:r.querySelector('.br-dob').value||null
+    }));
+    if(!babies.some(b=>b.name)){toast('Add at least one baby');return;}
+    const btn=document.getElementById('create-fam');
+    btn.disabled=true; btn.textContent='Creating…';
+    try{ await createFamily(name,babies); }
+    catch(e){ toast(e.message); btn.disabled=false; btn.textContent='Create Family →'; }
+  };
+}
+
+function renderTracker(a){
+  const nav=`<div id="nav">
+    ${['daily','growth','summary','settings'].map((t,i)=>{
+      const icons=['📅','📈','📊','⚙️'];
+      const labels=['Daily','Growth','Summary','Settings'];
+      return `<button class="${S.tab===t?'active':''}" onclick="setTab('${t}')">\
+<span class="icon">${icons[i]}</span>${labels[i]}</button>`;
+    }).join('')}
+  </div>`;
+  a.innerHTML=`<div class="sticky-header">
+    <button style="font-size:20px;padding:4px 8px" onclick="show('families')">‹</button>
+    <div style="flex:1"><div style="font-weight:700;font-size:16px">${esc(S.family.name)}</div>
+    <div class="sub">${S.babies.length} bab${S.babies.length!==1?'ies':'y'} · ${S.members.length} member${S.members.length!==1?'s':''}</div></div>
+    <button style="font-size:20px" onclick="refreshAll()">🔄</button>
+  </div>
+  <div id="main"></div>
+  ${nav}`;
+  renderTab();
+}
+
+async function refreshAll(){
+  try{
+    await Promise.all([loadMembers(),loadBabies()]);
+    await Promise.all([loadEntries(S.curDate),loadMeasurements(),loadVaccines()]);
+    delete S.notes[S.curDate];
+    renderTab();
+    toast('Refreshed');
+  }catch(e){toast(e.message);}
+}
+
+function setTab(t){ S.tab=t; renderTab(); }
+function renderTab(){
+  if(!document.getElementById('main')) return;
+  if(S.tab==='daily') renderDaily();
+  else if(S.tab==='growth') renderGrowth();
+  else if(S.tab==='summary') renderSummary();
+  else if(S.tab==='settings') renderSettings();
+  // update nav active state
+  document.querySelectorAll('#nav button').forEach(b=>{
+    b.classList.toggle('active',b.getAttribute('onclick')===`setTab('${S.tab}')`);
+  });
+}
+
+// ── Daily Tab ────────────────────────────────────────────────
+function renderDaily(){
+  const m=document.getElementById('main');
+  m.innerHTML=renderDateNav()+renderGlance()+`<div class="baby-grid" id="baby-grid">`+
+    S.babies.map((b,i)=>renderBabyCard(b,i)).join('')+
+    `</div>`+renderDailyNotes();
+  loadNote(S.curDate).then(()=>{
+    const ta=document.getElementById('daily-note-ta');
+    if(ta) ta.value=S.notes[S.curDate]||'';
+  });
+  bindDailyNoteEvents();
+}
+
+function renderDateNav(){
+  return `<div class="date-nav">
+    <button class="btn btn-outline btn-sm" onclick="changeDate(-1)">‹</button>
+    <div class="date-label">${fmtDate(S.curDate)}</div>
+    <button class="btn btn-outline btn-sm" onclick="changeDate(1)">›</button>
+    ${S.curDate!==today()?`<button class="btn btn-sm" style="background:#e0e7ff;color:#4f46e5" onclick="goToday()">Today</button>`:''}
+  </div>`;
+}
+
+async function changeDate(d){
+  const dt=new Date(S.curDate+'T00:00:00');
+  dt.setDate(dt.getDate()+d);
+  S.curDate=dt.toISOString().split('T')[0];
+  if(!S.entries[S.curDate]) await loadEntries(S.curDate);
+  renderTab();
+}
+async function goToday(){ S.curDate=today(); if(!S.entries[S.curDate]) await loadEntries(S.curDate); renderTab(); }
+
+function renderGlance(){
+  const date=S.curDate;
+  const ents=S.entries[date]||{};
+  let totalMl=0, totalUrine=0, totalPotty=0, totalAll=0;
+  S.babies.forEach(b=>{
+    const bents=ents[b.id]||[];
+    totalMl+=bents.filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+    totalUrine+=bents.filter(e=>e.type==='urine').length;
+    totalPotty+=bents.filter(e=>e.type==='potty').length;
+    totalAll+=bents.length;
+  });
+  return `<div class="glance">
+    <div class="glance-item"><div class="g-val">🍼${totalMl}</div><div class="g-lbl">ml total</div></div>
+    <div class="glance-item"><div class="g-val">💧${totalUrine}</div><div class="g-lbl">urine</div></div>
+    <div class="glance-item"><div class="g-val">💩${totalPotty}</div><div class="g-lbl">potty</div></div>
+    <div class="glance-item"><div class="g-val">${totalAll}</div><div class="g-lbl">entries</div></div>
+    ${S.babies.map(b=>{
+      const ml=(ents[b.id]||[]).filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+      return `<div class="glance-item"><div class="g-val">${ml}ml</div><div class="g-lbl">${esc(b.emoji+b.name)}</div></div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderBabyCard(b,i){
+  const c=COLORS[i%COLORS.length];
+  const date=S.curDate;
+  const ents=(S.entries[date]||{})[b.id]||[];
+  const milkMl=ents.filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+  const urine=ents.filter(e=>e.type==='urine').length;
+  const potty=ents.filter(e=>e.type==='potty').length;
+  const selType=S.selType[b.id]||'milk';
+
+  const logHTML=ents.length?ents.map(e=>`<div class="log-entry">
+    <span class="log-time">${esc(e.time)}</span>
+    <span class="log-desc">${entryDesc(e)}</span>
+    <button class="del-btn" onclick="handleDelEntry('${e.id}','${b.id}')">×</button>
+  </div>`).join(''):`<div style="padding:10px 0;text-align:center;color:var(--muted);font-size:13px">No entries</div>`;
+
+  const addHTML=renderAddArea(b,selType);
+
+  return `<div class="baby-card" id="bc-${b.id}">
+    <div class="baby-card-head" style="background:${c.m}">
+      <span style="font-size:24px">${b.emoji}</span>
+      <div>
+        <div class="bname" style="color:${c.d}">${esc(b.name)}</div>
+        <div class="baby-chips">
+          <span style="background:${c.l};color:${c.d}">🍼${milkMl}ml</span>
+          <span style="background:${c.l};color:${c.d}">💧${urine}</span>
+          <span style="background:${c.l};color:${c.d}">💩${potty}</span>
+        </div>
+      </div>
+    </div>
+    <div class="baby-log">${logHTML}</div>
+    ${addHTML}
+  </div>`;
+}
+
+function renderAddArea(b,selType){
+  const pills=TYPES.map(t=>`<button class="pill ${selType===t.k?'active':''}" onclick="setSel('${b.id}','${t.k}')">${t.icon} ${t.label}</button>`).join('');
+  let extra='';
+  if(selType==='milk') extra=`<input class="input" id="ml-${b.id}" type="number" placeholder="ml" min="0" style="width:72px"/>`;
+  if(selType==='medicine'||selType==='vitamin') extra=`<input class="input" id="note-${b.id}" type="text" placeholder="name/dose" style="flex:1"/>`;
+  return `<div class="add-area">
+    <div class="type-pills">${pills}</div>
+    <div class="add-row">
+      <input class="input" id="time-${b.id}" type="time" value="${nowTime()}" style="width:110px"/>
+      ${extra}
+      <button class="btn btn-primary btn-sm" onclick="handleAddEntry('${b.id}')">+ Add</button>
+    </div>
+  </div>`;
+}
+
+function entryDesc(e){
+  if(e.type==='milk') return `🍼 ${e.ml||0}ml`;
+  if(e.type==='urine') return '💧 Urine';
+  if(e.type==='potty') return '💩 Potty';
+  if(e.type==='vitamin') return `💊 ${esc(e.note||'Vitamin')}`;
+  if(e.type==='medicine') return `🩹 ${esc(e.note||'Medicine')}`;
+  return esc(e.type);
+}
+
+function setSel(babyId,type){ S.selType[babyId]=type; rerenderBabyCard(babyId); }
+
+function rerenderBabyCard(babyId){
+  const el=document.getElementById('bc-'+babyId);
+  if(!el) return;
+  const idx=S.babies.findIndex(b=>b.id===babyId);
+  const b=S.babies[idx];
+  el.outerHTML=renderBabyCard(b,idx);
+}
+
+async function handleAddEntry(babyId){
+  const time=document.getElementById('time-'+babyId)?.value||nowTime();
+  const type=S.selType[babyId]||'milk';
+  const ml=type==='milk'?parseInt(document.getElementById('ml-'+babyId)?.value||0):null;
+  const note=(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
+  try{
+    await addEntry(babyId,type,time,ml,note);
+    rerenderBabyCard(babyId);
+    // refresh glance
+    document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+  }catch(e){toast(e.message);}
+}
+
+async function handleDelEntry(id,babyId){
+  try{
+    await deleteEntry(id,babyId);
+    rerenderBabyCard(babyId);
+    document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+  }catch(e){toast(e.message);}
+}
+
+function htmlToEl(html){ const d=document.createElement('div');d.innerHTML=html;return d.firstChild; }
+
+function renderDailyNotes(){
+  return `<div class="card" style="margin-top:12px">
+    <div class="section-title">📝 Daily Notes</div>
+    <textarea class="input" id="daily-note-ta" rows="3" style="resize:vertical" placeholder="Notes for today…"></textarea>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">Auto-saved</div>
+  </div>`;
+}
+
+function bindDailyNoteEvents(){
+  const ta=document.getElementById('daily-note-ta');
+  if(!ta) return;
+  const save=debounce((v)=>saveNote(S.curDate,v),800);
+  ta.addEventListener('input',()=>save(ta.value));
+}
+
+// ── Growth Tab ───────────────────────────────────────────────
+function renderGrowth(){
+  const m=document.getElementById('main');
+  m.innerHTML=`<div class="section-title">📏 Measurements</div>
+    <div class="baby-grid">${S.babies.map((b,i)=>renderMeasCard(b,i)).join('')}</div>
+    <div class="section-title" style="margin-top:20px">💉 Vaccines</div>
+    ${renderVaccineSection()}`;
+}
+
+function renderMeasCard(b,i){
+  const c=COLORS[i%COLORS.length];
+  const ms=S.meas[b.id]||[];
+  const latest={weight:ms.find(m=>m.mtype==='weight'),length:ms.find(m=>m.mtype==='length'),head:ms.find(m=>m.mtype==='head')};
+  const rows=ms.slice(0,10).map(m=>`<tr><td>${m.date}</td><td>${m.mtype}</td><td>${m.value} ${mUnit(m.mtype)}</td>
+    <td><button class="del-btn" onclick="handleDelMeas('${m.id}','${b.id}')">×</button></td></tr>`).join('');
+  return `<div class="card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:22px">${b.emoji}</span>
+      <span style="font-weight:700;color:${c.d}">${esc(b.name)}</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      ${latest.weight?`<span class="badge" style="background:${c.m};color:${c.d}">⚖️ ${latest.weight.value}kg</span>`:''}
+      ${latest.length?`<span class="badge" style="background:${c.m};color:${c.d}">📏 ${latest.length.value}cm</span>`:''}
+      ${latest.head?`<span class="badge" style="background:${c.m};color:${c.d}">🧠 ${latest.head.value}cm</span>`:''}
+    </div>
+    ${ms.length?`<table class="meas-table"><thead><tr><th>Date</th><th>Type</th><th>Value</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table>`:'<p style="font-size:13px;color:var(--muted)">No measurements</p>'}
+    <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
+      <input class="input" id="md-${b.id}" type="date" value="${today()}" style="width:130px"/>
+      <select class="input" id="mt-${b.id}" style="width:110px">
+        <option value="weight">Weight (kg)</option>
+        <option value="length">Length (cm)</option>
+        <option value="head">Head (cm)</option>
+      </select>
+      <input class="input" id="mv-${b.id}" type="number" step="0.1" placeholder="Value" style="width:90px"/>
+      <button class="btn btn-primary btn-sm" onclick="handleAddMeas('${b.id}')">Add</button>
+    </div>
+  </div>`;
+}
+
+function mUnit(t){ return t==='weight'?'kg':'cm'; }
+
+async function handleAddMeas(babyId){
+  const date=document.getElementById('md-'+babyId)?.value;
+  const mtype=document.getElementById('mt-'+babyId)?.value;
+  const value=parseFloat(document.getElementById('mv-'+babyId)?.value);
+  if(!date||!mtype||isNaN(value)){toast('Fill all fields');return;}
+  try{ await addMeasurement(babyId,date,mtype,value); renderGrowth(); }
+  catch(e){ toast(e.message); }
+}
+
+async function handleDelMeas(id,babyId){
+  try{ await deleteMeasurement(id,babyId); renderGrowth(); }
+  catch(e){ toast(e.message); }
+}
+
+function renderVaccineSection(){
+  const allVax=S.babies.flatMap(b=>(S.vax[b.id]||[]).map(v=>({...v,baby:b})));
+  allVax.sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=allVax.map(v=>`<tr>
+    <td>${v.date}</td>
+    <td>${v.baby.emoji} ${esc(v.baby.name)}</td>
+    <td>${esc(v.name)}</td>
+    <td>${esc(v.note||'')}</td>
+    <td><button class="del-btn" onclick="handleDelVax('${v.id}','${v.baby_id}')">×</button></td>
+  </tr>`).join('');
+
+  const babyOpts=S.babies.map(b=>`<option value="${b.id}">${b.emoji} ${esc(b.name)}</option>`).join('');
+  return `<div class="card">
+    ${allVax.length?`<table class="meas-table" style="margin-bottom:12px"><thead><tr><th>Date</th><th>Baby</th><th>Vaccine</th><th>Notes</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table>`:'<p style="font-size:13px;color:var(--muted);margin-bottom:12px">No vaccines recorded</p>'}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
+      <select class="input" id="vb" style="width:130px">${babyOpts}</select>
+      <input class="input" id="vd" type="date" value="${today()}" style="width:130px"/>
+      <input class="input" id="vn" type="text" placeholder="Vaccine name" style="flex:1;min-width:120px"/>
+      <input class="input" id="vo" type="text" placeholder="Notes (opt)" style="flex:1;min-width:100px"/>
+      <button class="btn btn-primary btn-sm" onclick="handleAddVax()">Add</button>
+    </div>
+  </div>`;
+}
+
+async function handleAddVax(){
+  const babyId=document.getElementById('vb')?.value;
+  const date=document.getElementById('vd')?.value;
+  const name=document.getElementById('vn')?.value.trim();
+  const note=document.getElementById('vo')?.value.trim();
+  if(!babyId||!date||!name){toast('Fill required fields');return;}
+  try{ await addVaccine(babyId,date,name,note); renderGrowth(); }
+  catch(e){ toast(e.message); }
+}
+
+async function handleDelVax(id,babyId){
+  try{ await deleteVaccine(id,babyId); renderGrowth(); }
+  catch(e){ toast(e.message); }
+}
+
+// ── Summary Tab ──────────────────────────────────────────────
+async function renderSummary(){
+  const m=document.getElementById('main');
+  m.innerHTML=`<div style="text-align:center;padding:40px"><div class="spinner" style="margin:auto"></div></div>`;
+  // Load last 7 days
+  const dates=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  try{
+    const {data,error}=await sb.from('entries').select('*')
+      .eq('family_id',S.family.id).in('date',dates).order('date');
+    if(error) throw error;
+
+    const byDate={};
+    dates.forEach(d=>{
+      byDate[d]={};
+      S.babies.forEach(b=>byDate[d][b.id]=[]);
+    });
+    (data||[]).forEach(e=>{
+      if(byDate[e.date]&&byDate[e.date][e.baby_id]) byDate[e.date][e.baby_id].push(e);
+    });
+
+    const maxMl=Math.max(1,...dates.flatMap(d=>S.babies.map(b=>byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0))));
+
+    const tableRows=dates.map(d=>{
+      const cells=S.babies.map((b,bi)=>{
+        const ml=byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+        const w=Math.round(ml/maxMl*80);
+        return `<td><div class="bar-wrap"><div class="bar" style="width:${w}px;background:${CHART_COLORS[bi%CHART_COLORS.length]}"></div><span style="font-size:12px;margin-left:2px">${ml}</span></div></td>`;
+      }).join('');
+      const urine=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='urine').length,0);
+      const potty=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='potty').length,0);
+      return `<tr><td style="white-space:nowrap;font-size:13px">${fmtDate(d)}</td>${cells}<td>${urine}</td><td>${potty}</td></tr>`;
+    }).join('');
+
+    const babyThs=S.babies.map(b=>`<th>${b.emoji} ${esc(b.name)} Milk</th>`).join('');
+
+    const growthCards=S.babies.map((b,i)=>{
+      const c=COLORS[i%COLORS.length];
+      const ms=S.meas[b.id]||[];
+      const w=ms.find(m=>m.mtype==='weight'), l=ms.find(m=>m.mtype==='length'), h=ms.find(m=>m.mtype==='head');
+      return `<div class="card" style="flex:1;min-width:140px">
+        <div style="font-weight:700;color:${c.d};margin-bottom:6px">${b.emoji} ${esc(b.name)}</div>
+        ${w?`<div style="font-size:13px">⚖️ ${w.value}kg</div>`:''}
+        ${l?`<div style="font-size:13px">📏 ${l.value}cm</div>`:''}
+        ${h?`<div style="font-size:13px">🧠 ${h.value}cm</div>`:''}
+        ${!w&&!l&&!h?`<div style="font-size:12px;color:var(--muted)">No data</div>`:''}
+      </div>`;
+    }).join('');
+
+    const allVax=S.babies.flatMap(b=>(S.vax[b.id]||[]).map(v=>({...v,baby:b})));
+    allVax.sort((a,b)=>b.date.localeCompare(a.date));
+    const vaxRows=allVax.slice(0,8).map(v=>`<li style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border)">${v.date} — ${v.baby.emoji} ${esc(v.baby.name)}: ${esc(v.name)}</li>`).join('');
+
+    m.innerHTML=`<div class="section-title">7-Day Feeding Summary</div>
+      <div style="overflow-x:auto"><table class="sum-table">
+        <thead><tr><th>Date</th>${babyThs}<th>💧</th><th>💩</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table></div>
+      <div class="section-title">Current Growth</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">${growthCards}</div>
+      <div class="section-title">Recent Vaccines</div>
+      <div class="card"><ul style="list-style:none">${vaxRows||'<li style="font-size:13px;color:var(--muted)">None</li>'}</ul></div>`;
+  }catch(e){ m.innerHTML=`<div style="padding:20px;color:red">${esc(e.message)}</div>`; }
+}
+
+// ── Settings Tab ─────────────────────────────────────────────
+function renderSettings(){
+  const m=document.getElementById('main');
+  const isAdmin=S.family.myRole==='admin';
+
+  const memberRows=S.members.map(mem=>`<div class="member-row">
+    <div class="member-avatar">${esc(mem.avatar||'👤')}</div>
+    <div class="member-info">
+      <div class="member-name">${esc(mem.full_name||'Unknown')}</div>
+      <div class="member-email">${esc(mem.email||'')}</div>
+    </div>
+    <span class="badge ${mem.role==='admin'?'badge-admin':'badge-member'}">${mem.role==='admin'?'👑 Admin':'Member'}</span>
+    ${isAdmin&&mem.id!==S.user.id?`<button class="btn btn-danger btn-sm" onclick="handleRemoveMember('${mem.memberId}','${mem.id}')">Remove</button>`:''}
+  </div>`).join('');
+
+  const babyList=S.babies.map(b=>`<div class="member-row">
+    <span style="font-size:24px">${b.emoji}</span>
+    <div class="member-info">
+      <div class="member-name">${esc(b.name)}</div>
+      <div class="member-email">${b.dob?'DOB: '+b.dob:'No DOB'}</div>
+    </div>
+    ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="handleDelBaby('${b.id}')">Delete</button>`:''}
+  </div>`).join('');
+
+  const emojiOpts=BABY_EMOJIS.map(e=>`<option value="${e}">${e}</option>`).join('');
+
+  m.innerHTML=`<div class="section-title">Members</div>
+    <div class="card">${memberRows}</div>
+
+    ${isAdmin?`<div class="section-title">Invite</div>
+    <div class="card">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Generate a link to invite someone to this family</p>
+      <button class="btn btn-primary btn-sm" id="gen-invite-btn">Generate Invite Link</button>
+      <div id="invite-result"></div>
+    </div>`:''}
+
+    <div class="section-title">Babies</div>
+    <div class="card">${babyList}
+      ${isAdmin?`<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
+        <input class="input" id="nb-name" type="text" placeholder="Name" style="flex:1;min-width:100px"/>
+        <select class="emoji-sel" id="nb-emoji">${emojiOpts}</select>
+        <input class="input" id="nb-dob" type="date" style="width:140px"/>
+        <button class="btn btn-primary btn-sm" onclick="handleAddBaby()">Add Baby</button>
+      </div>`:''}
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="show('families')">Switch Family</button>
+      <button class="btn btn-danger" onclick="sb.auth.signOut()">Sign Out</button>
+    </div>`;
+
+  if(isAdmin){
+    document.getElementById('gen-invite-btn')?.addEventListener('click',async()=>{
+      try{
+        const url=await generateInvite();
+        document.getElementById('invite-result').innerHTML=`<div class="invite-link-box" id="inv-link">${esc(url)}</div>
+          <button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="copyInvite('${esc(url)}')">Copy Link</button>`;
+      }catch(e){toast(e.message);}
+    });
+  }
+}
+
+function copyInvite(url){
+  navigator.clipboard.writeText(url).then(()=>toast('Link copied!')).catch(()=>toast('Copy failed'));
+}
+
+async function handleRemoveMember(memberId,userId){
+  try{ await removeMember(memberId,userId); renderSettings(); }
+  catch(e){ toast(e.message); }
+}
+
+async function handleDelBaby(id){
+  try{ await deleteBaby(id); renderSettings(); }
+  catch(e){ toast(e.message); }
+}
+
+async function handleAddBaby(){
+  const name=document.getElementById('nb-name')?.value.trim();
+  const emoji=document.getElementById('nb-emoji')?.value||'🌸';
+  const dob=document.getElementById('nb-dob')?.value||null;
+  if(!name){toast('Enter baby name');return;}
+  try{ await addBaby(name,emoji,dob); renderSettings(); toast('Baby added!'); }
+  catch(e){ toast(e.message); }
+}
+
+// ── Auth State ───────────────────────────────────────────────
+function listenAuth(){
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='SIGNED_IN'&&session){
+      S.user=session.user;
+      try{
+        await loadProfile();
+        await loadFamilies();
+        if(S.pendingInvite){
+          try{ const r=await acceptInvite(S.pendingInvite); if(r&&r.ok) toast('Joined '+r.family_name+'!'); }
+          catch(e){ toast(e.message); }
+          S.pendingInvite=null;
+          await loadFamilies();
+        }
+        if(S.families.length===0) show('setup');
+        else show('families');
+      }catch(e){
+        console.error(e);
+        show('auth');
+      }
+    } else if(event==='SIGNED_OUT'){
+      S={...S,screen:'auth',user:null,profile:null,families:[],family:null,members:[],babies:[],entries:{},meas:{},vax:{},notes:{},tab:'daily'};
+      show('auth');
+    }
+  });
+}
+
+// ── Boot ─────────────────────────────────────────────────────
+async function boot(){
+  if(checkSetup()) return;
+  initSupa();
+  show('loading');
+
+  // Check for invite token
+  const params=new URLSearchParams(window.location.search);
+  const token=params.get('invite');
+  if(token){
+    S.pendingInvite=token;
+    await loadInvitePreview(token);
+  }
+
+  listenAuth();
+
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){
+    show('auth');
+    return;
+  }
+
+  S.user=session.user;
+  try{
+    await loadProfile();
+    await loadFamilies();
+    if(S.pendingInvite){
+      try{ const r=await acceptInvite(S.pendingInvite); if(r&&r.ok) toast('Joined '+r.family_name+'!'); }
+      catch(e){ toast(e.message); }
+      S.pendingInvite=null;
+      await loadFamilies();
+    }
+    if(S.families.length===0) show('setup');
+    else show('families');
+  }catch(e){
+    console.error(e);
+    show('auth');
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
