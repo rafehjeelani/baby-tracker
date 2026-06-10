@@ -657,7 +657,6 @@ function renderBabyCard(b,idx){
   const urine=ents.filter(e=>e.type==='urine').length;
   const potty=ents.filter(e=>e.type==='potty').length;
   const selType=S.selType[b.id]||'milk';
-  const swatches=BABY_COLORS.map(col=>`<div class="color-swatch ${S.babyColors[b.id]===col.id||((!S.babyColors[b.id])&&col.id===DEFAULT_COLORS[idx%DEFAULT_COLORS.length])?'active':''}" style="background:${col.m}" title="${col.label}" onclick="setBabyColor('${b.id}','${col.id}')"></div>`).join('');
   const logHTML=ents.length
     ? ents.map(e=>`<div class="log-entry"><span class="log-time">${esc(e.time)}</span><span class="log-desc">${entryDesc(e)}</span><button class="del-btn" onclick="handleDelEntry('${e.id}','${b.id}')">×</button></div>`).join('')
     : `<div class="log-empty">No entries yet</div>`;
@@ -671,7 +670,6 @@ function renderBabyCard(b,idx){
           <span style="background:${c.l};color:${c.d}">💧 ${urine}</span>
           <span style="background:${c.l};color:${c.d}">💩 ${potty}</span>
         </div>
-        <div class="color-swatches">${swatches}</div>
       </div>
     </div>
     <div class="baby-log">${logHTML}</div>
@@ -894,14 +892,21 @@ function renderSettings(){
     ${isAdmin&&mem.id!==S.user.id?`<button class="btn btn-danger btn-sm" onclick="handleRemoveMember('${mem.memberId}','${mem.id}')">Remove</button>`:''}
   </div>`).join('');
   const emojiOpts=BABY_EMOJIS.map(e=>`<option value="${e}">${e}</option>`).join('');
-  const babyList=S.babies.map(b=>`<div class="member-row">
-    <span style="font-size:26px">${b.emoji}</span>
-    <div class="member-info">
-      <div class="member-name">${esc(b.name)}</div>
-      <div class="member-email">${b.dob?'DOB: '+b.dob:'No date of birth set'}</div>
-    </div>
-    ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="handleDelBaby('${b.id}')">Delete</button>`:''}
-  </div>`).join('');
+  const babyList=S.babies.map((b,idx)=>{
+    const swatches=BABY_COLORS.map(col=>{
+      const active=S.babyColors[b.id]===col.id||((!S.babyColors[b.id])&&col.id===DEFAULT_COLORS[idx%DEFAULT_COLORS.length]);
+      return `<div class="color-swatch ${active?'active':''}" style="background:${col.m}" title="${col.label}" onclick="setBabyColor('${b.id}','${col.id}')"></div>`;
+    }).join('');
+    return `<div class="member-row" style="flex-wrap:wrap;row-gap:8px">
+      <span style="font-size:26px">${b.emoji}</span>
+      <div class="member-info">
+        <div class="member-name">${esc(b.name)}</div>
+        <div class="member-email">${b.dob?'DOB: '+b.dob:'No date of birth set'}</div>
+        <div class="color-swatches" style="margin-top:6px">${swatches}</div>
+      </div>
+      ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="handleDelBaby('${b.id}')">Delete</button>`:''}
+    </div>`;
+  }).join('');
   m.innerHTML=`
     <div class="section-title">Members</div>
     <div class="card">${memberRows||'<p style="font-size:13px;color:var(--muted)">No members</p>'}</div>
