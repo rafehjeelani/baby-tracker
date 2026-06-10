@@ -226,6 +226,13 @@ function fmtDate(d){
 function nowTime(){
   const d=new Date(); return pad(d.getHours())+':'+pad(d.getMinutes());
 }
+function fmt12(time24){
+  if(!time24) return '';
+  const [h,m]=time24.split(':').map(Number);
+  const ampm=h>=12?'PM':'AM';
+  const h12=h%12||12;
+  return `${h12}:${pad(m)} ${ampm}`;
+}
 let _tt;
 function toast(msg,dur=3000){
   const t=document.getElementById('toast');
@@ -658,7 +665,7 @@ function renderBabyCard(b,idx){
   const potty=ents.filter(e=>e.type==='potty').length;
   const selType=S.selType[b.id]||'milk';
   const logHTML=ents.length
-    ? ents.map(e=>`<div class="log-entry"><span class="log-time">${esc(e.time)}</span><span class="log-desc">${entryDesc(e)}</span><button class="del-btn" onclick="handleDelEntry('${e.id}','${b.id}')">×</button></div>`).join('')
+    ? ents.map(e=>`<div class="log-entry"><span class="log-time">${fmt12(e.time)}</span><span class="log-desc">${entryDesc(e)}</span><button class="del-btn" onclick="handleDelEntry('${e.id}','${b.id}')">×</button></div>`).join('')
     : `<div class="log-empty">No entries yet</div>`;
   return `<div class="baby-card" id="bc-${b.id}">
     <div class="baby-card-head" style="background:${c.m}">
