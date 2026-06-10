@@ -688,7 +688,7 @@ function renderDateNav(){
 }
 async function changeDate(d){
   const dt=new Date(S.curDate+'T00:00:00'); dt.setDate(dt.getDate()+d);
-  S.curDate=dt.toISOString().split('T')[0];
+  S.curDate=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
   await Promise.all([
     S.entries[S.curDate]?null:loadEntries(S.curDate),
     S.pump[S.curDate]?null:loadPump(S.curDate)
