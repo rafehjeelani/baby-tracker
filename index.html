@@ -221,7 +221,8 @@ let S = {
   entries:{}, meas:{}, vax:{}, notes:{}, pump:{},
   curDate:today(), selType:{}, milkType:{}, editEntry:{}, tab:'daily',
   pendingInvite:null, invitePreview:null,
-  babyColors: JSON.parse(localStorage.getItem('bt_colors')||'{}')
+  babyColors: JSON.parse(localStorage.getItem('bt_colors')||'{}'),
+  familyColor: localStorage.getItem('bt_fam_color')||'blue'
 };
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -308,6 +309,7 @@ async function loadFamilies(){
 }
 async function openFamily(fam){
   S.family=fam; S.tab='daily'; S.entries={}; S.meas={}; S.vax={}; S.notes={}; S.pump={};
+  if(fam.color){ S.familyColor=fam.color; localStorage.setItem('bt_fam_color',fam.color); }
   await Promise.all([loadMembers(),loadBabies()]);
   await Promise.all([loadEntries(S.curDate),loadMeasurements(),loadVaccines(),loadPump(S.curDate)]);
   show('tracker');
@@ -447,6 +449,18 @@ async function acceptInvite(token){
 }
 
 // ── Color picker ─────────────────────────────────────────────
+async function setFamilyColor(colorId){
+  S.familyColor=colorId;
+  localStorage.setItem('bt_fam_color',colorId);
+  if(S.family) sb.from('families').update({color:colorId}).eq('id',S.family.id);
+  const fc=BABY_COLORS.find(c=>c.id===colorId)||BABY_COLORS[1];
+  const hdr=document.querySelector('.sticky-header');
+  if(hdr){ hdr.style.background=`linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%)`; hdr.style.borderBottomColor=fc.d; }
+  document.querySelectorAll('.sticky-header .hd-title,.sticky-header .hd-sub').forEach(el=>el.style.color='#fff');
+  document.querySelector('.sticky-header .hd-back')&&(document.querySelector('.sticky-header .hd-back').style.color='rgba(255,255,255,.85)');
+  document.querySelector('.sticky-header button:last-child')&&(document.querySelector('.sticky-header button:last-child').style.color='rgba(255,255,255,.85)');
+  if(S.tab==='settings') renderSettings();
+}
 async function setBabyColor(babyId, colorId){
   S.babyColors[babyId]=colorId;
   localStorage.setItem('bt_colors',JSON.stringify(S.babyColors));
@@ -635,13 +649,14 @@ function bindSetupEvents(emojiOpts){
 
 // ── Tracker shell ────────────────────────────────────────────
 function renderTracker(a){
-  a.innerHTML=`<div class="sticky-header">
-    <button class="hd-back" onclick="show('families')">‹</button>
+  const fc=BABY_COLORS.find(c=>c.id===S.familyColor)||BABY_COLORS[1];
+  a.innerHTML=`<div class="sticky-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d}">
+    <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85)">‹</button>
     <div style="flex:1">
-      <div class="hd-title">${esc(S.family.name)}</div>
-      <div class="hd-sub">${S.babies.length} bab${S.babies.length!==1?'ies':'y'} · ${S.members.length} member${S.members.length!==1?'s':''}</div>
+      <div class="hd-title" style="color:#fff">${esc(S.family.name)}</div>
+      <div class="hd-sub" style="color:rgba(255,255,255,.8)">${S.babies.length} bab${S.babies.length!==1?'ies':'y'} · ${S.members.length} member${S.members.length!==1?'s':''}</div>
     </div>
-    <button style="font-size:20px;padding:6px;border-radius:8px;color:var(--muted)" onclick="refreshAll()" title="Refresh">↻</button>
+    <button style="font-size:20px;padding:6px;border-radius:8px;color:rgba(255,255,255,.85)" onclick="refreshAll()" title="Refresh">↻</button>
   </div>
   <div id="main"></div>
   <div id="nav">
@@ -1045,13 +1060,14 @@ async function renderSummary(){
       const cells=S.babies.map((b,bi)=>{
         const ml=byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
         const w=Math.round(ml/maxMl*72);
-        return `<td><div class="bar-wrap"><div class="bar" style="width:${w}px;background:${CHART_COLORS[bi%CHART_COLORS.length]}"></div><span style="font-size:12px;font-weight:600;min-width:28px">${ml}</span></div></td>`;
+        const bc=getBabyColor(b.id,bi);
+        return `<td><div class="bar-wrap"><div class="bar" style="width:${w}px;background:${bc.d}"></div><span style="font-size:12px;font-weight:600;min-width:28px;color:${bc.d}">${ml}</span></div></td>`;
       }).join('');
       const ur=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='urine').length,0);
       const po=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='potty').length,0);
       return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}<td style="font-weight:600">${ur}</td><td style="font-weight:600">${po}</td></tr>`;
     }).join('');
-    const bThs=S.babies.map(b=>`<th>${b.emoji} ${esc(b.name)}</th>`).join('');
+    const bThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">${b.emoji} ${esc(b.name)}</th>`;}).join('');
     const growthCards=S.babies.map((b,i)=>{
       const c=getBabyColor(b.id,i); const ms=S.meas[b.id]||[];
       const w=ms.find(m=>m.mtype==='weight'),l=ms.find(m=>m.mtype==='length'),h=ms.find(m=>m.mtype==='head');
@@ -1125,6 +1141,13 @@ function renderSettings(){
       <p style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.5">Generate a shareable link — anyone who opens it can join this family.</p>
       <button class="btn btn-primary btn-sm" id="gen-invite-btn">Generate Invite Link</button>
       <div id="invite-result"></div>
+    </div>`:''}
+
+    ${isAdmin?`
+    <div class="section-title">Header Colour</div>
+    <div class="card">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Colour for the family name bar at the top.</p>
+      <div class="color-swatches">${BABY_COLORS.map(col=>`<div class="color-swatch ${S.familyColor===col.id?'active':''}" style="background:${col.m}" title="${col.label}" onclick="setFamilyColor('${col.id}')"></div>`).join('')}</div>
     </div>`:''}
 
     <div class="section-title">Babies</div>
