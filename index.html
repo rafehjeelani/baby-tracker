@@ -355,9 +355,10 @@ async function loadNote(date){
   S.notes[date]=data?data.content:'';
 }
 async function saveNote(date,content){
+  const prev=S.notes[date];
   S.notes[date]=content;
   const {error}=await sb.from('daily_notes').upsert({family_id:S.family.id,date,content,updated_by:S.user.id,updated_at:new Date().toISOString()},{onConflict:'family_id,date'});
-  if(error) toast('Note save failed');
+  if(error){ S.notes[date]=prev; toast('Note save failed'); }
 }
 async function generateInvite(){
   const {data,error}=await sb.from('invitations').insert({family_id:S.family.id,invited_by:S.user.id,role:'member'}).select('token').single();
@@ -482,7 +483,7 @@ function renderFamilies(a){
         <h2>👋 ${esc(S.profile?.full_name||'Welcome back')}</h2>
         <p>${esc(S.profile?.email||'')}</p>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="sb.auth.signOut()">Sign Out</button>
+      <button class="btn btn-ghost btn-sm" onclick="handleSignOut()">Sign Out</button>
     </div>
     <div class="fam-grid">
       ${cards}
@@ -516,7 +517,7 @@ function renderSetup(a){
         </div>
       </div>
       <div class="section-title">Babies</div>
-      <div id="baby-rows">${[0,1].map(i=>babyRowHTML(i,emojiOpts)).join('')}</div>
+      <div id="baby-rows">${[0].map(i=>babyRowHTML(i,emojiOpts)).join('')}</div>
       <button class="btn btn-ghost btn-sm" id="add-baby-row" style="margin-bottom:20px">＋ Add another baby</button>
       <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px" id="create-fam">Create Family →</button>
     </div>
@@ -630,14 +631,14 @@ function renderGlance(){
   const ents=S.entries[S.curDate]||{};
   let totalMl=0,urine=0,potty=0,all=0;
   S.babies.forEach(b=>{
-    const be=ents[b.id]||[];
+    const be=(ents[b.id])||[];
     totalMl+=be.filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
     urine+=be.filter(e=>e.type==='urine').length;
     potty+=be.filter(e=>e.type==='potty').length;
     all+=be.length;
   });
   const perBaby=S.babies.map(b=>{
-    const ml=(ents[b.id]||[]).filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+    const ml=((ents[b.id])||[]).filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
     return `<div class="glance-item"><div class="g-val">${ml}ml</div><div class="g-lbl">${esc(b.emoji+' '+b.name)}</div></div>`;
   }).join('');
   return `<div class="glance">
@@ -706,6 +707,7 @@ function rerenderBabyCard(babyId){
   const el=document.getElementById('bc-'+babyId);
   if(!el) return;
   const idx=S.babies.findIndex(b=>b.id===babyId);
+  if(idx===-1) return;
   el.outerHTML=renderBabyCard(S.babies[idx],idx);
 }
 async function handleAddEntry(babyId){
@@ -925,7 +927,7 @@ function renderSettings(){
 
     <div class="settings-actions">
       <button class="btn btn-ghost" onclick="show('families')">← Switch Family</button>
-      <button class="btn btn-danger" onclick="sb.auth.signOut()">Sign Out</button>
+      <button class="btn btn-danger" onclick="handleSignOut()">Sign Out</button>
     </div>`;
 
   if(isAdmin){
@@ -933,11 +935,15 @@ function renderSettings(){
       try{
         const url=await generateInvite();
         document.getElementById('invite-result').innerHTML=`
-          <div class="invite-link-box">${esc(url)}</div>
-          <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="copyInvite('${esc(url)}')">Copy Link</button>`;
+          <div class="invite-link-box" id="inv-url">${esc(url)}</div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:8px" id="inv-copy-btn">Copy Link</button>`;
+        document.getElementById('inv-copy-btn').addEventListener('click',()=>copyInvite(url));
       }catch(e){toast(e.message);}
     });
   }
+}
+async function handleSignOut(){
+  await sb.auth.signOut();
 }
 function copyInvite(url){
   navigator.clipboard.writeText(url).then(()=>toast('Link copied!')).catch(()=>toast('Copy failed — copy manually'));
