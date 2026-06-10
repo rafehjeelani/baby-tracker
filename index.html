@@ -244,6 +244,31 @@ function fmt12(time24){
   const h12=h%12||12;
   return `${h12}:${pad(m)} ${ampm}`;
 }
+function render12hPicker(id, time24){
+  const [hh,mm]=(time24||nowTime()).split(':').map(Number);
+  const ampm=hh>=12?'PM':'AM';
+  const h12=hh%12||12;
+  const hrs=Array.from({length:12},(_,i)=>i+1).map(h=>`<option${h===h12?' selected':''}>${h}</option>`).join('');
+  const mins=['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const mRound=Math.round(mm/5)*5%60;
+  const mSels=mins.map(m=>`<option${parseInt(m)===mRound?' selected':''}>${m}</option>`).join('');
+  return `<div style="display:flex;gap:3px;align-items:center;flex-shrink:0">
+    <select class="input" id="${id}-h" style="width:52px;padding:0 4px;text-align:center">${hrs}</select>
+    <span style="font-weight:700;color:var(--text-secondary)">:</span>
+    <select class="input" id="${id}-m" style="width:52px;padding:0 4px;text-align:center">${mSels}</select>
+    <select class="input" id="${id}-ap" style="width:54px;padding:0 4px;text-align:center">
+      <option${ampm==='AM'?' selected':''}>AM</option>
+      <option${ampm==='PM'?' selected':''}>PM</option>
+    </select>
+  </div>`;
+}
+function get12hPickerValue(id){
+  const h=parseInt(document.getElementById(id+'-h')?.value||12);
+  const m=document.getElementById(id+'-m')?.value||'00';
+  const ap=document.getElementById(id+'-ap')?.value||'AM';
+  let h24=h%12+(ap==='PM'?12:0);
+  return pad(h24)+':'+m;
+}
 let _tt;
 function toast(msg,dur=3000){
   const t=document.getElementById('toast');
@@ -739,7 +764,7 @@ function renderAddArea(b,selType){
   return `<div class="add-area">
     <div class="type-pills">${pills}</div>
     <div class="add-row">
-      <input class="input" id="time-${b.id}" type="time" value="${nowTime()}" style="width:120px;min-width:120px"/>
+      ${render12hPicker('time-'+b.id, nowTime())}
       ${extra}
       <button class="btn btn-primary btn-sm" onclick="handleAddEntry('${b.id}')">＋ Add</button>
     </div>
@@ -763,7 +788,7 @@ function rerenderBabyCard(babyId){
   el.outerHTML=renderBabyCard(S.babies[idx],idx);
 }
 async function handleAddEntry(babyId){
-  const time=document.getElementById('time-'+babyId)?.value||nowTime();
+  const time=get12hPickerValue('time-'+babyId)||nowTime();
   const type=S.selType[babyId]||'milk';
   const ml=type==='milk'?parseInt(document.getElementById('ml-'+babyId)?.value||0):null;
   const note=(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
@@ -797,7 +822,7 @@ function renderPumpSection(){
       ${rows||`<div class="log-empty">No pump sessions recorded</div>`}
     </div>
     <div class="pump-form-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);align-items:center">
-      <input class="input" id="pump-time" type="time" value="${nowTime()}" style="width:120px;min-width:120px;flex-shrink:0"/>
+      ${render12hPicker('pump-time', nowTime())}
       <input class="input" id="pump-ml" type="number" placeholder="ml" min="0" style="width:80px;flex-shrink:0"/>
       <input class="input" id="pump-note" type="text" placeholder="Note (opt)" style="flex:1;min-width:100px"/>
       <button class="btn btn-primary btn-sm" onclick="handleAddPump()" style="flex-shrink:0">＋ Add</button>
@@ -805,7 +830,7 @@ function renderPumpSection(){
   </div>`;
 }
 async function handleAddPump(){
-  const time=document.getElementById('pump-time')?.value||nowTime();
+  const time=get12hPickerValue('pump-time')||nowTime();
   const ml=parseInt(document.getElementById('pump-ml')?.value||0);
   const note=document.getElementById('pump-note')?.value.trim()||null;
   if(!ml){toast('Enter ml amount');return;}
