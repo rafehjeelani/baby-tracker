@@ -728,12 +728,13 @@ async function goToday(){
 
 function renderGlance(){
   const ents=S.entries[S.curDate]||{};
-  let totalMl=0,urine=0,potty=0,all=0;
+  let totalMl=0,urine=0,potty=0,vit=0,all=0;
   S.babies.forEach(b=>{
     const be=(ents[b.id])||[];
     totalMl+=be.filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
     urine+=be.filter(e=>e.type==='urine').length;
     potty+=be.filter(e=>e.type==='potty').length;
+    vit+=be.filter(e=>e.type==='vitamin').length;
     all+=be.length;
   });
   const perBaby=S.babies.map(b=>{
@@ -744,6 +745,7 @@ function renderGlance(){
     <div class="glance-item"><div class="g-val">🍼 ${totalMl}</div><div class="g-lbl">ml total</div></div>
     <div class="glance-item"><div class="g-val">💧 ${urine}</div><div class="g-lbl">urine</div></div>
     <div class="glance-item"><div class="g-val">💩 ${potty}</div><div class="g-lbl">potty</div></div>
+    ${vit?`<div class="glance-item"><div class="g-val">💊 ${vit}</div><div class="g-lbl">vitamins</div></div>`:''}
     <div class="glance-item"><div class="g-val">${all}</div><div class="g-lbl">entries</div></div>
     ${perBaby}
   </div>`;
@@ -790,7 +792,7 @@ function renderAddArea(b,selType){
   let extra='';
   if(selType==='milk') extra=`
     <div style="display:flex;gap:4px;flex-shrink:0">
-      <button class="pill${mt.includes('BP')?' active':''}" style="padding:6px 10px" onclick="toggleMilkTag('${b.id}','BP')">BP</button>
+      <button class="pill${mt.includes('BM')?' active':''}" style="padding:6px 10px" onclick="toggleMilkTag('${b.id}','BM')">BM</button>
       <button class="pill${mt.includes('FM')?' active':''}" style="padding:6px 10px" onclick="toggleMilkTag('${b.id}','FM')">FM</button>
     </div>
     <input class="input" id="ml-${b.id}" type="number" placeholder="ml" min="0" style="width:72px;height:40px;box-sizing:border-box"/>`;
@@ -812,7 +814,7 @@ function toggleMilkTag(babyId,tag){
 
 function milkTagChips(note){
   if(!note) return '';
-  return note.split('+').map(t=>`<span style="font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:${t==='BP'?'#fce7f3':'#dbeafe'};color:${t==='BP'?'#9d174d':'#1d4ed8'}">${esc(t)}</span>`).join(' ');
+  return note.split('+').map(t=>`<span style="font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:${t==='BM'?'#fce7f3':'#dbeafe'};color:${t==='BM'?'#9d174d':'#1d4ed8'}">${esc(t)}</span>`).join(' ');
 }
 function entryDesc(e){
   if(e.type==='milk')     return `🍼 ${e.ml||0} ml ${milkTagChips(e.note)}`;
@@ -826,14 +828,14 @@ function renderEditRow(e, babyId){
   const isMilk=e.type==='milk';
   const isMed=e.type==='medicine'||e.type==='vitamin';
   const curTags=(e.note||'').split('+').filter(Boolean);
-  const bpActive=curTags.includes('BP');
+  const bmActive=curTags.includes('BM');
   const fmActive=curTags.includes('FM');
   return `<div class="log-entry" style="flex-wrap:wrap;gap:6px;padding:10px 14px;background:#f0f7ff">
     ${render12hPicker('edit-'+e.id, e.time)}
     ${isMilk?`
       <input class="input" id="edit-ml-${e.id}" type="number" value="${e.ml||''}" placeholder="ml" style="width:68px;height:40px;box-sizing:border-box"/>
       <div style="display:flex;gap:4px">
-        <button class="pill${bpActive?' active':''}" style="padding:5px 10px" onclick="toggleEditTag('${e.id}','BP')">BP</button>
+        <button class="pill${bmActive?' active':''}" style="padding:5px 10px" onclick="toggleEditTag('${e.id}','BM')">BM</button>
         <button class="pill${fmActive?' active':''}" style="padding:5px 10px" onclick="toggleEditTag('${e.id}','FM')">FM</button>
       </div>`:''}
     ${isMed?`<input class="input" id="edit-note-${e.id}" type="text" value="${esc(e.note||'')}" placeholder="name / dose" style="flex:1;min-width:90px;height:40px;box-sizing:border-box"/>`:''}
