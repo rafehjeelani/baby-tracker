@@ -1074,14 +1074,16 @@ async function renderSummary(){
         const bc=getBabyColor(b.id,bi);
         return `<td><div class="bar-wrap">${feeds?`<span style="font-size:11px;color:var(--muted);margin-right:4px">${feeds}×</span>`:''}<div class="bar" style="width:${w}px;background:${bc.d}"></div><span style="font-size:12px;font-weight:600;min-width:28px;color:${bc.d}">${ml}</span></div></td>`;
       }).join('');
-      const ur=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='urine').length,0);
-      const po=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='potty').length,0);
       const pumpMl=pumpByDate[d].reduce((s,p)=>s+(p.ml||0),0);
       const pumpSessions=pumpByDate[d].length;
       const pumpCell=pumpMl?`<span style="font-weight:600;color:#7c3aed">${pumpMl}</span><span style="font-size:11px;color:var(--muted);margin-left:3px">${pumpSessions}×</span>`:'-';
-      return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}<td>${pumpCell}</td><td style="font-weight:600">${ur}</td><td style="font-weight:600">${po}</td></tr>`;
+      const urCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const n=byDate[d][b.id].filter(e=>e.type==='urine').length;return `<td style="font-weight:600;color:${bc.d}">${n||'-'}</td>`;}).join('');
+      const poCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const n=byDate[d][b.id].filter(e=>e.type==='potty').length;return `<td style="font-weight:600;color:${bc.d}">${n||'-'}</td>`;}).join('');
+      return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}<td>${pumpCell}</td>${urCells}${poCells}</tr>`;
     }).join('');
     const bThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">${b.emoji} ${esc(b.name)}</th>`;}).join('');
+    const urThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💧 ${esc(b.name)}</th>`;}).join('');
+    const poThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💩 ${esc(b.name)}</th>`;}).join('');
     const growthCards=S.babies.map((b,i)=>{
       const c=getBabyColor(b.id,i); const ms=S.meas[b.id]||[];
       const w=ms.find(m=>m.mtype==='weight'),l=ms.find(m=>m.mtype==='length'),h=ms.find(m=>m.mtype==='head');
@@ -1099,7 +1101,7 @@ async function renderSummary(){
     m.innerHTML=`
       <div class="section-title">7-Day Feeding (ml)</div>
       <div class="card" style="overflow-x:auto;padding:0"><table class="sum-table" style="margin:0">
-        <thead><tr><th>Date</th>${bThs}<th style="color:#7c3aed">🤱 ml</th><th>💧</th><th>💩</th></tr></thead>
+        <thead><tr><th>Date</th>${bThs}<th style="color:#7c3aed">🤱 ml</th>${urThs}${poThs}</tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
       <div class="section-title">Latest Growth</div>
@@ -1146,6 +1148,15 @@ function renderSettings(){
     </div>`;
   }).join('');
   m.innerHTML=`
+    ${isAdmin?`
+    <div class="section-title">Family Name</div>
+    <div class="card">
+      <div class="add-form-row" style="gap:8px">
+        <input class="input" id="fam-name-inp" type="text" value="${esc(S.family.name)}" style="flex:1"/>
+        <button class="btn btn-primary btn-sm" onclick="handleRenameFamiliy()">Save</button>
+      </div>
+    </div>`:''}
+
     <div class="section-title">Members</div>
     <div class="card">${memberRows||'<p style="font-size:13px;color:var(--muted)">No members</p>'}</div>
 
@@ -1191,6 +1202,15 @@ function renderSettings(){
       }catch(e){toast(e.message);}
     });
   }
+}
+async function handleRenameFamiliy(){
+  const name=document.getElementById('fam-name-inp')?.value.trim();
+  if(!name){toast('Enter a name');return;}
+  const {error}=await sb.from('families').update({name}).eq('id',S.family.id);
+  if(error){toast(error.message);return;}
+  S.family.name=name;
+  document.querySelector('.sticky-header .hd-title').textContent=name;
+  toast('Family name updated');
 }
 async function handleSignOut(){
   await sb.auth.signOut();
