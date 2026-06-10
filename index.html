@@ -102,6 +102,8 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .log-desc{flex:1;line-height:1.3}
 .del-btn{color:#ef4444;font-size:18px;line-height:1;padding:3px 5px;border-radius:6px;flex-shrink:0;opacity:.7;transition:opacity .15s}
 .del-btn:hover{opacity:1}
+.edit-btn{color:var(--muted);font-size:14px;line-height:1;padding:3px 5px;border-radius:6px;flex-shrink:0;opacity:.6;transition:opacity .15s}
+.edit-btn:hover{opacity:1}
 .log-empty{padding:14px;text-align:center;color:var(--muted);font-size:13px}
 
 /* ── Add entry area ── */
@@ -217,7 +219,7 @@ let S = {
   screen:'loading', authMode:'signin', user:null, profile:null,
   families:[], family:null, members:[], babies:[],
   entries:{}, meas:{}, vax:{}, notes:{}, pump:{},
-  curDate:today(), selType:{}, milkType:{}, tab:'daily',
+  curDate:today(), selType:{}, milkType:{}, editEntry:{}, tab:'daily',
   pendingInvite:null, invitePreview:null,
   babyColors: JSON.parse(localStorage.getItem('bt_colors')||'{}')
 };
@@ -356,6 +358,11 @@ async function loadEntries(date){
 }
 async function addEntry(babyId,type,time,ml,note){
   const {error}=await sb.from('entries').insert({baby_id:babyId,family_id:S.family.id,date:S.curDate,time,type,ml:ml||null,note:note||null,created_by:S.user.id});
+  if(error) throw error;
+  await loadEntries(S.curDate);
+}
+async function updateEntry(id,fields){
+  const {error}=await sb.from('entries').update(fields).eq('id',id);
   if(error) throw error;
   await loadEntries(S.curDate);
 }
@@ -736,7 +743,13 @@ function renderBabyCard(b,idx){
   const vit=ents.filter(e=>e.type==='vitamin').length;
   const selType=S.selType[b.id]||'milk';
   const logHTML=ents.length
-    ? ents.map(e=>`<div class="log-entry"><span class="log-time">${fmt12(e.time)}</span><span class="log-desc">${entryDesc(e)}</span><button class="del-btn" onclick="handleDelEntry('${e.id}','${b.id}')">×</button></div>`).join('')
+    ? ents.map(e=>S.editEntry[e.id]?renderEditRow(e,b.id):
+        `<div class="log-entry">
+          <span class="log-time">${fmt12(e.time)}</span>
+          <span class="log-desc">${entryDesc(e)}</span>
+          <button class="edit-btn" onclick="startEdit('${e.id}')">✏️</button>
+          <button class="del-btn" onclick="handleDelEntry('${e.id}','${b.id}')">×</button>
+        </div>`).join('')
     : `<div class="log-empty">No entries yet</div>`;
   return `<div class="baby-card" id="bc-${b.id}">
     <div class="baby-card-head" style="background:${c.m}">
@@ -758,12 +771,12 @@ function renderBabyCard(b,idx){
 
 function renderAddArea(b,selType){
   const pills=TYPES.map(t=>`<button class="pill ${selType===t.k?'active':''}" onclick="setSel('${b.id}','${t.k}')">${t.icon} ${t.label}</button>`).join('');
-  const mt=S.milkType[b.id]||'BP';
+  const mt=S.milkType[b.id]||[];
   let extra='';
   if(selType==='milk') extra=`
     <div style="display:flex;gap:4px;flex-shrink:0">
-      <button class="pill${mt==='BP'?' active':''}" style="padding:6px 10px" onclick="setMilkType('${b.id}','BP')">BP</button>
-      <button class="pill${mt==='FM'?' active':''}" style="padding:6px 10px" onclick="setMilkType('${b.id}','FM')">FM</button>
+      <button class="pill${mt.includes('BP')?' active':''}" style="padding:6px 10px" onclick="toggleMilkTag('${b.id}','BP')">BP</button>
+      <button class="pill${mt.includes('FM')?' active':''}" style="padding:6px 10px" onclick="toggleMilkTag('${b.id}','FM')">FM</button>
     </div>
     <input class="input" id="ml-${b.id}" type="number" placeholder="ml" min="0" style="width:72px;height:40px;box-sizing:border-box"/>`;
   if(selType==='medicine'||selType==='vitamin') extra=`<input class="input" id="note-${b.id}" type="text" placeholder="name / dose" style="flex:1;height:40px;box-sizing:border-box"/>`;
@@ -776,15 +789,74 @@ function renderAddArea(b,selType){
     </div>
   </div>`;
 }
-function setMilkType(babyId,type){ S.milkType[babyId]=type; rerenderBabyCard(babyId); }
+function toggleMilkTag(babyId,tag){
+  const cur=S.milkType[babyId]||[];
+  S.milkType[babyId]=cur.includes(tag)?cur.filter(t=>t!==tag):[...cur,tag];
+  rerenderBabyCard(babyId);
+}
 
+function milkTagChips(note){
+  if(!note) return '';
+  return note.split('+').map(t=>`<span style="font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:${t==='BP'?'#fce7f3':'#dbeafe'};color:${t==='BP'?'#9d174d':'#1d4ed8'}">${esc(t)}</span>`).join(' ');
+}
 function entryDesc(e){
-  if(e.type==='milk')     return `🍼 ${e.ml||0} ml${e.note?' · <span style="font-size:11px;font-weight:700;padding:1px 5px;border-radius:4px;background:#dbeafe;color:#1d4ed8">'+esc(e.note)+'</span>':''}`;
+  if(e.type==='milk')     return `🍼 ${e.ml||0} ml ${milkTagChips(e.note)}`;
   if(e.type==='urine')    return '💧 Urine';
   if(e.type==='potty')    return '💩 Potty';
   if(e.type==='vitamin')  return `💊 ${esc(e.note||'Vitamin')}`;
   if(e.type==='medicine') return `🩹 ${esc(e.note||'Medicine')}`;
   return esc(e.type);
+}
+function renderEditRow(e, babyId){
+  const isMilk=e.type==='milk';
+  const isMed=e.type==='medicine'||e.type==='vitamin';
+  const curTags=(e.note||'').split('+').filter(Boolean);
+  const bpActive=curTags.includes('BP');
+  const fmActive=curTags.includes('FM');
+  return `<div class="log-entry" style="flex-wrap:wrap;gap:6px;padding:10px 14px;background:#f0f7ff">
+    ${render12hPicker('edit-'+e.id, e.time)}
+    ${isMilk?`
+      <input class="input" id="edit-ml-${e.id}" type="number" value="${e.ml||''}" placeholder="ml" style="width:68px;height:40px;box-sizing:border-box"/>
+      <div style="display:flex;gap:4px">
+        <button class="pill${bpActive?' active':''}" style="padding:5px 10px" onclick="toggleEditTag('${e.id}','BP')">BP</button>
+        <button class="pill${fmActive?' active':''}" style="padding:5px 10px" onclick="toggleEditTag('${e.id}','FM')">FM</button>
+      </div>`:''}
+    ${isMed?`<input class="input" id="edit-note-${e.id}" type="text" value="${esc(e.note||'')}" placeholder="name / dose" style="flex:1;min-width:90px;height:40px;box-sizing:border-box"/>`:''}
+    <div style="display:flex;gap:6px;margin-left:auto">
+      <button class="btn btn-primary btn-sm" onclick="handleSaveEdit('${e.id}','${babyId}')">Save</button>
+      <button class="btn btn-ghost btn-sm" onclick="cancelEdit('${e.id}','${babyId}')">Cancel</button>
+    </div>
+  </div>`;
+}
+function startEdit(entryId){ S.editEntry[entryId]=true; rerenderCardByEntry(entryId); }
+function cancelEdit(entryId,babyId){ delete S.editEntry[entryId]; rerenderBabyCard(babyId); }
+function toggleEditTag(entryId,tag){
+  const e=findEntry(entryId); if(!e) return;
+  const tags=(e.note||'').split('+').filter(Boolean);
+  e.note=tags.includes(tag)?tags.filter(t=>t!==tag).join('+'):([...tags,tag].join('+'));
+  rerenderCardByEntry(entryId);
+}
+function findEntry(id){
+  for(const bMap of Object.values(S.entries[S.curDate]||{}))
+    for(const e of bMap) if(e.id===id) return e;
+}
+function rerenderCardByEntry(entryId){
+  const e=findEntry(entryId); if(!e) return;
+  const b=S.babies.find(b=>b.id===e.baby_id); if(!b) return;
+  rerenderBabyCard(b.id);
+}
+async function handleSaveEdit(entryId,babyId){
+  const e=findEntry(entryId); if(!e) return;
+  const time=get12hPickerValue('edit-'+entryId)||e.time;
+  const isMilk=e.type==='milk', isMed=e.type==='medicine'||e.type==='vitamin';
+  const ml=isMilk?parseInt(document.getElementById('edit-ml-'+entryId)?.value||0):e.ml;
+  const note=isMed?(document.getElementById('edit-note-'+entryId)?.value||''):e.note;
+  try{
+    await updateEntry(entryId,{time,ml:ml||null,note:note||null});
+    delete S.editEntry[entryId];
+    rerenderBabyCard(babyId);
+    document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+  }catch(err){toast(err.message);}
 }
 function setSel(babyId,type){ S.selType[babyId]=type; rerenderBabyCard(babyId); }
 function rerenderBabyCard(babyId){
@@ -798,7 +870,8 @@ async function handleAddEntry(babyId){
   const time=get12hPickerValue('time-'+babyId)||nowTime();
   const type=S.selType[babyId]||'milk';
   const ml=type==='milk'?parseInt(document.getElementById('ml-'+babyId)?.value||0):null;
-  const note=type==='milk'?(S.milkType[babyId]||'BP'):(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
+  const mt=S.milkType[babyId]||[];
+  const note=type==='milk'?(mt.length?mt.join('+'):null):(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
   try{
     await addEntry(babyId,type,time,ml,note);
     rerenderBabyCard(babyId);
