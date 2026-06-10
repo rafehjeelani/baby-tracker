@@ -1070,7 +1070,7 @@ async function renderSummary(){
         const feeds=milkEnts.length;
         const w=Math.round(ml/maxMl*72);
         const bc=getBabyColor(b.id,bi);
-        return `<td><div class="bar-wrap"><div class="bar" style="width:${w}px;background:${bc.d}"></div><span style="font-size:12px;font-weight:600;min-width:28px;color:${bc.d}">${ml}</span>${feeds?`<span style="font-size:11px;color:var(--muted);margin-left:3px">${feeds}×</span>`:''}</div></td>`;
+        return `<td><div class="bar-wrap">${feeds?`<span style="font-size:11px;color:var(--muted);margin-right:4px">${feeds}×</span>`:''}<div class="bar" style="width:${w}px;background:${bc.d}"></div><span style="font-size:12px;font-weight:600;min-width:28px;color:${bc.d}">${ml}</span></div></td>`;
       }).join('');
       const ur=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='urine').length,0);
       const po=S.babies.reduce((s,b)=>s+byDate[d][b.id].filter(e=>e.type==='potty').length,0);
