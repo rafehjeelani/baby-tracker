@@ -1076,12 +1076,9 @@ function renderVaccineSection(){
     <td style="text-align:right"><button class="del-btn" onclick="handleDelVax('${v.id}','${v.baby_id}')">×</button></td>
   </tr>`).join('');
   const babyOpts=S.babies.map(b=>`<option value="${b.id}">${b.emoji} ${esc(b.name)}</option>`).join('');
-  const filterOpts=`<option value="all">All babies</option>`+S.babies.map(b=>`<option value="${b.id}"${S.vaxFilter===b.id?' selected':''}>${b.emoji} ${esc(b.name)}</option>`).join('');
+  const vfPills=[['all','All'],...S.babies.map(b=>[b.id,`${b.emoji} ${esc(b.name)}`])].map(([k,l])=>`<button class="pill${S.vaxFilter===k?' active':''}" onclick="setVaxFilter('${k}')">${l}</button>`).join('');
   return `<div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <span style="font-weight:600;font-size:13px;color:var(--muted)">${visible.length} record${visible.length!==1?'s':''}</span>
-      <select class="input" style="width:auto;padding:6px 10px;font-size:13px" onchange="setVaxFilter(this.value)">${filterOpts}</select>
-    </div>
+    <div class="type-pills" style="margin-bottom:12px">${vfPills}</div>
     ${rows.length?`<div style="overflow-x:auto;margin-bottom:14px"><table class="meas-table"><thead><tr><th>Date</th><th>Baby</th><th>Vaccine</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px">No vaccines recorded</p>`}
     <div class="vax-form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
       <select class="input" id="vb">${babyOpts}</select>
