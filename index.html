@@ -110,7 +110,7 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .pill{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--muted);transition:all .15s;white-space:nowrap}
 .pill.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 2px 6px rgba(37,99,235,.25)}
 .add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.add-row .input{padding:9px 11px}
+.add-row .input{padding:9px 11px;height:40px;box-sizing:border-box}
 
 /* ── Auth ── */
 .auth-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#1e3a8a 0%,#2563eb 55%,#60a5fa 100%);padding:20px}
@@ -253,10 +253,10 @@ function render12hPicker(id, time24){
   const mRound=Math.round(mm/5)*5%60;
   const mSels=mins.map(m=>`<option${parseInt(m)===mRound?' selected':''}>${m}</option>`).join('');
   return `<div style="display:flex;gap:3px;align-items:center;flex-shrink:0">
-    <select class="input" id="${id}-h" style="width:52px;padding:0 4px;text-align:center">${hrs}</select>
+    <select class="input" id="${id}-h" style="width:52px;padding:0 4px;text-align:center;height:40px;box-sizing:border-box">${hrs}</select>
     <span style="font-weight:700;color:var(--text-secondary)">:</span>
-    <select class="input" id="${id}-m" style="width:52px;padding:0 4px;text-align:center">${mSels}</select>
-    <select class="input" id="${id}-ap" style="width:54px;padding:0 4px;text-align:center">
+    <select class="input" id="${id}-m" style="width:52px;padding:0 4px;text-align:center;height:40px;box-sizing:border-box">${mSels}</select>
+    <select class="input" id="${id}-ap" style="width:54px;padding:0 4px;text-align:center;height:40px;box-sizing:border-box">
       <option${ampm==='AM'?' selected':''}>AM</option>
       <option${ampm==='PM'?' selected':''}>PM</option>
     </select>
@@ -319,9 +319,9 @@ async function createFamily(name,babies){
   await openFamily(fam||{id:data.family_id,name,myRole:'admin'});
 }
 async function loadMembers(){
-  const {data,error}=await sb.from('family_members').select('id,role,user_id,profiles(id,full_name,email,avatar)').eq('family_id',S.family.id);
+  const {data,error}=await sb.from('family_members').select('id,role,tag,user_id,profiles(id,full_name,email,avatar)').eq('family_id',S.family.id);
   if(error) throw error;
-  S.members=(data||[]).map(r=>({...r.profiles,memberId:r.id,role:r.role}));
+  S.members=(data||[]).map(r=>({...r.profiles,memberId:r.id,role:r.role,tag:r.tag||''}));
 }
 async function loadBabies(){
   const {data,error}=await sb.from('babies').select('*').eq('family_id',S.family.id).order('created_at');
@@ -823,8 +823,8 @@ function renderPumpSection(){
     </div>
     <div class="pump-form-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);align-items:center">
       ${render12hPicker('pump-time', nowTime())}
-      <input class="input" id="pump-ml" type="number" placeholder="ml" min="0" style="width:80px;flex-shrink:0"/>
-      <input class="input" id="pump-note" type="text" placeholder="Note (opt)" style="flex:1;min-width:100px"/>
+      <input class="input" id="pump-ml" type="number" placeholder="ml" min="0" style="width:80px;flex-shrink:0;height:40px;box-sizing:border-box"/>
+      <input class="input" id="pump-note" type="text" placeholder="Note (opt)" style="flex:1;min-width:100px;height:40px;box-sizing:border-box"/>
       <button class="btn btn-primary btn-sm" onclick="handleAddPump()" style="flex-shrink:0">＋ Add</button>
     </div>
   </div>`;
@@ -1003,15 +1003,22 @@ async function renderSummary(){
 function renderSettings(){
   const m=document.getElementById('main');
   const isAdmin=S.family.myRole==='admin';
-  const memberRows=S.members.map(mem=>`<div class="member-row">
-    <div class="member-avatar">${esc(mem.avatar||'👤')}</div>
-    <div class="member-info">
-      <div class="member-name">${esc(mem.full_name||'Unknown')}</div>
-      <div class="member-email">${esc(mem.email||'')}</div>
-    </div>
-    <span class="badge ${mem.role==='admin'?'badge-admin':'badge-member'}">${mem.role==='admin'?'👑 Admin':'Member'}</span>
-    ${isAdmin&&mem.id!==S.user.id?`<button class="btn btn-danger btn-sm" onclick="handleRemoveMember('${mem.memberId}','${mem.id}')">Remove</button>`:''}
-  </div>`).join('');
+  const memberRows=S.members.map(mem=>{
+    const tagBg=TAG_COLORS[mem.tag]||'';
+    const tagChip=mem.tag?`<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:${tagBg};color:#374151">${esc(mem.tag)}</span>`:'';
+    const tagOpts=MEMBER_TAGS.map(t=>`<option value="${t}"${mem.tag===t?' selected':''}>${t||'— set role —'}</option>`).join('');
+    const tagSel=isAdmin?`<select style="font-size:12px;border:1.5px solid var(--border);border-radius:8px;padding:3px 6px;background:#fff;color:var(--text);cursor:pointer" onchange="handleSetMemberTag('${mem.memberId}',this.value)">${tagOpts}</select>`:'';
+    return `<div class="member-row" style="flex-wrap:wrap;row-gap:6px">
+      <div class="member-avatar">${esc(mem.avatar||'👤')}</div>
+      <div class="member-info">
+        <div class="member-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(mem.full_name||'Unknown')} ${tagChip}</div>
+        <div class="member-email">${esc(mem.email||'')}</div>
+        ${isAdmin?`<div style="margin-top:5px">${tagSel}</div>`:''}
+      </div>
+      <span class="badge ${mem.role==='admin'?'badge-admin':'badge-member'}">${mem.role==='admin'?'👑 Admin':'Member'}</span>
+      ${isAdmin&&mem.id!==S.user.id?`<button class="btn btn-danger btn-sm" onclick="handleRemoveMember('${mem.memberId}','${mem.id}')">Remove</button>`:''}
+    </div>`;
+  }).join('');
   const emojiOpts=BABY_EMOJIS.map(e=>`<option value="${e}">${e}</option>`).join('');
   const babyList=S.babies.map((b,idx)=>{
     const swatches=BABY_COLORS.map(col=>{
@@ -1076,6 +1083,16 @@ function copyInvite(url){
 }
 async function handleRemoveMember(memberId,userId){
   try{ await removeMember(memberId,userId); renderSettings(); }catch(e){ toast(e.message); }
+}
+const MEMBER_TAGS=['','Mother','Father','Grandmother','Grandfather','Aunt','Uncle','Nanny','Other'];
+const TAG_COLORS={'Mother':'#fbcfe8','Father':'#bfdbfe','Grandmother':'#d9f99d','Grandfather':'#fde68a','Aunt':'#ddd6fe','Uncle':'#a5f3fc','Nanny':'#fed7aa','Other':'#e5e7eb'};
+async function handleSetMemberTag(memberId, tag){
+  const mem=S.members.find(m=>m.memberId===memberId);
+  if(mem) mem.tag=tag;
+  try{
+    await sb.from('family_members').update({tag:tag||null}).eq('id',memberId);
+    renderSettings();
+  }catch(e){toast(e.message);}
 }
 async function handleDelBaby(id){
   try{ await deleteBaby(id); renderSettings(); }catch(e){ toast(e.message); }
