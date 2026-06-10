@@ -223,17 +223,15 @@ async function openFamily(fam){
 }
 
 async function createFamily(name, babies){
-  const {data:fam,error:fe}=await sb.from('families').insert({name,created_by:S.user.id}).select().single();
-  if(fe) throw fe;
-  const {error:me}=await sb.from('family_members').insert({family_id:fam.id,user_id:S.user.id,role:'admin'});
-  if(me) throw me;
-  const brows=babies.filter(b=>b.name.trim()).map(b=>({family_id:fam.id,name:b.name.trim(),emoji:b.emoji,dob:b.dob||null}));
-  if(brows.length){
-    const {error:be}=await sb.from('babies').insert(brows);
-    if(be) throw be;
-  }
+  const {data,error}=await sb.rpc('create_family',{
+    p_name: name,
+    p_babies: babies
+  });
+  if(error) throw error;
+  if(data&&data.error) throw new Error(data.error);
   await loadFamilies();
-  await openFamily(S.families.find(f=>f.id===fam.id)||{...fam,myRole:'admin'});
+  const fam=S.families.find(f=>f.id===data.family_id);
+  await openFamily(fam||{id:data.family_id,name,myRole:'admin'});
 }
 
 async function loadMembers(){
