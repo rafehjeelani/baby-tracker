@@ -65,7 +65,7 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .section-title:first-child{margin-top:0}
 
 /* ── Date nav ── */
-.date-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.date-nav{display:flex;align-items:center;gap:8px;margin:0 -16px;padding:10px 16px 10px;background:#fff;position:sticky;top:57px;z-index:50;border-bottom:1px solid var(--border);box-shadow:0 2px 6px rgba(15,45,80,.04)}
 .date-nav .date-label{flex:1;text-align:center;font-weight:700;font-size:16px}
 .date-nav .btn-ghost{min-width:38px;padding:8px 10px;font-size:16px}
 
@@ -217,7 +217,7 @@ let S = {
   screen:'loading', authMode:'signin', user:null, profile:null,
   families:[], family:null, members:[], babies:[],
   entries:{}, meas:{}, vax:{}, notes:{}, pump:{},
-  curDate:today(), selType:{}, tab:'daily',
+  curDate:today(), selType:{}, milkType:{}, tab:'daily',
   pendingInvite:null, invitePreview:null,
   babyColors: JSON.parse(localStorage.getItem('bt_colors')||'{}')
 };
@@ -669,7 +669,7 @@ function renderTab(){
 // ── Daily tab ────────────────────────────────────────────────
 function renderDaily(){
   const m=document.getElementById('main');
-  m.innerHTML=renderDateNav()+renderGlance()+
+  m.innerHTML=renderDateNav()+`<div style="height:12px"></div>`+renderGlance()+
     `<div class="baby-grid">${S.babies.map((b,i)=>renderBabyCard(b,i)).join('')}</div>`+
     renderPumpSection()+renderDailyNotes();
   loadNote(S.curDate).then(()=>{
@@ -751,16 +751,22 @@ function renderBabyCard(b,idx){
         </div>
       </div>
     </div>
-    <div class="baby-log">${logHTML}</div>
     ${renderAddArea(b,selType)}
+    <div class="baby-log">${logHTML}</div>
   </div>`;
 }
 
 function renderAddArea(b,selType){
   const pills=TYPES.map(t=>`<button class="pill ${selType===t.k?'active':''}" onclick="setSel('${b.id}','${t.k}')">${t.icon} ${t.label}</button>`).join('');
+  const mt=S.milkType[b.id]||'BP';
   let extra='';
-  if(selType==='milk') extra=`<input class="input" id="ml-${b.id}" type="number" placeholder="ml" min="0" style="width:76px"/>`;
-  if(selType==='medicine'||selType==='vitamin') extra=`<input class="input" id="note-${b.id}" type="text" placeholder="name / dose" style="flex:1"/>`;
+  if(selType==='milk') extra=`
+    <div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="pill${mt==='BP'?' active':''}" style="padding:6px 10px" onclick="setMilkType('${b.id}','BP')">BP</button>
+      <button class="pill${mt==='FM'?' active':''}" style="padding:6px 10px" onclick="setMilkType('${b.id}','FM')">FM</button>
+    </div>
+    <input class="input" id="ml-${b.id}" type="number" placeholder="ml" min="0" style="width:72px;height:40px;box-sizing:border-box"/>`;
+  if(selType==='medicine'||selType==='vitamin') extra=`<input class="input" id="note-${b.id}" type="text" placeholder="name / dose" style="flex:1;height:40px;box-sizing:border-box"/>`;
   return `<div class="add-area">
     <div class="type-pills">${pills}</div>
     <div class="add-row">
@@ -770,9 +776,10 @@ function renderAddArea(b,selType){
     </div>
   </div>`;
 }
+function setMilkType(babyId,type){ S.milkType[babyId]=type; rerenderBabyCard(babyId); }
 
 function entryDesc(e){
-  if(e.type==='milk')     return `🍼 ${e.ml||0} ml`;
+  if(e.type==='milk')     return `🍼 ${e.ml||0} ml${e.note?' · <span style="font-size:11px;font-weight:700;padding:1px 5px;border-radius:4px;background:#dbeafe;color:#1d4ed8">'+esc(e.note)+'</span>':''}`;
   if(e.type==='urine')    return '💧 Urine';
   if(e.type==='potty')    return '💩 Potty';
   if(e.type==='vitamin')  return `💊 ${esc(e.note||'Vitamin')}`;
@@ -791,7 +798,7 @@ async function handleAddEntry(babyId){
   const time=get12hPickerValue('time-'+babyId)||nowTime();
   const type=S.selType[babyId]||'milk';
   const ml=type==='milk'?parseInt(document.getElementById('ml-'+babyId)?.value||0):null;
-  const note=(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
+  const note=type==='milk'?(S.milkType[babyId]||'BP'):(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
   try{
     await addEntry(babyId,type,time,ml,note);
     rerenderBabyCard(babyId);
