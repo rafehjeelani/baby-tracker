@@ -1000,10 +1000,12 @@ function renderGrowth(){
   const m=document.getElementById('main');
   const mfOpts=[['all','All'],['weight','⚖️ Weight'],['length','📏 Length'],['head','🧠 Head']];
   const mfPills=mfOpts.map(([k,l])=>`<button class="pill${S.measFilter===k?' active':''}" onclick="setMeasFilter('${k}')">${l}</button>`).join('');
+  const vfPills=[['all','All'],...S.babies.map(b=>[b.id,`${b.emoji} ${esc(b.name)}`])].map(([k,l])=>`<button class="pill${S.vaxFilter===k?' active':''}" onclick="setVaxFilter('${k}')">${l}</button>`).join('');
   m.innerHTML=`<div class="section-title">📏 Measurements</div>
     <div class="type-pills" style="padding:0 0 10px">${mfPills}</div>
     <div class="baby-grid">${S.babies.map((b,i)=>renderMeasCard(b,i)).join('')}</div>
     <div class="section-title">💉 Vaccines</div>
+    <div class="type-pills" style="padding:0 0 10px">${vfPills}</div>
     ${renderVaccineSection()}`;
 }
 function renderMeasCard(b,idx){
@@ -1076,9 +1078,7 @@ function renderVaccineSection(){
     <td style="text-align:right"><button class="del-btn" onclick="handleDelVax('${v.id}','${v.baby_id}')">×</button></td>
   </tr>`).join('');
   const babyOpts=S.babies.map(b=>`<option value="${b.id}">${b.emoji} ${esc(b.name)}</option>`).join('');
-  const vfPills=[['all','All'],...S.babies.map(b=>[b.id,`${b.emoji} ${esc(b.name)}`])].map(([k,l])=>`<button class="pill${S.vaxFilter===k?' active':''}" onclick="setVaxFilter('${k}')">${l}</button>`).join('');
   return `<div class="card">
-    <div class="type-pills" style="margin-bottom:12px">${vfPills}</div>
     ${rows.length?`<div style="overflow-x:auto;margin-bottom:14px"><table class="meas-table"><thead><tr><th>Date</th><th>Baby</th><th>Vaccine</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px">No vaccines recorded</p>`}
     <div class="vax-form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
       <select class="input" id="vb">${babyOpts}</select>
