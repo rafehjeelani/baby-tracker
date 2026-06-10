@@ -219,7 +219,7 @@ let S = {
   screen:'loading', authMode:'signin', user:null, profile:null,
   families:[], family:null, members:[], babies:[],
   entries:{}, meas:{}, vax:{}, notes:{}, pump:{},
-  curDate:today(), selType:{}, milkType:{}, editEntry:{}, tab:'daily',
+  curDate:today(), selType:{}, milkType:{}, editEntry:{}, measFilter:'all', vaxFilter:'all', tab:'daily',
   pendingInvite:null, invitePreview:null,
   babyColors: JSON.parse(localStorage.getItem('bt_colors')||'{}'),
   familyColor: localStorage.getItem('bt_fam_color')||'blue'
@@ -998,7 +998,10 @@ function renderMiniChart(pts, color, unit){
 // ── Growth tab ───────────────────────────────────────────────
 function renderGrowth(){
   const m=document.getElementById('main');
+  const mfOpts=[['all','All'],['weight','⚖️ Weight'],['length','📏 Length'],['head','🧠 Head']];
+  const mfPills=mfOpts.map(([k,l])=>`<button class="pill${S.measFilter===k?' active':''}" onclick="setMeasFilter('${k}')">${l}</button>`).join('');
   m.innerHTML=`<div class="section-title">📏 Measurements</div>
+    <div class="type-pills" style="padding:0 0 10px">${mfPills}</div>
     <div class="baby-grid">${S.babies.map((b,i)=>renderMeasCard(b,i)).join('')}</div>
     <div class="section-title">💉 Vaccines</div>
     ${renderVaccineSection()}`;
@@ -1007,10 +1010,11 @@ function renderMeasCard(b,idx){
   const c=getBabyColor(b.id,idx);
   const ms=S.meas[b.id]||[];
   const sorted=ms.slice().sort((a,z)=>a.date.localeCompare(z.date));
-  const wPts=sorted.filter(m=>m.mtype==='weight').map(m=>({d:m.date,v:m.value}));
-  const lPts=sorted.filter(m=>m.mtype==='length').map(m=>({d:m.date,v:m.value}));
+  const filtered=S.measFilter==='all'?ms:ms.filter(m=>m.mtype===S.measFilter);
+  const wPts=(S.measFilter==='all'||S.measFilter==='weight')?sorted.filter(m=>m.mtype==='weight').map(m=>({d:m.date,v:m.value})):[];
+  const lPts=(S.measFilter==='all'||S.measFilter==='length')?sorted.filter(m=>m.mtype==='length').map(m=>({d:m.date,v:m.value})):[];
   const lat={w:ms.find(m=>m.mtype==='weight'),l:ms.find(m=>m.mtype==='length'),h:ms.find(m=>m.mtype==='head')};
-  const rows=ms.slice(0,8).map(m=>`<tr>
+  const rows=filtered.slice(0,10).map(m=>`<tr>
     <td style="color:var(--muted)">${m.date}</td>
     <td style="text-transform:capitalize">${m.mtype}</td>
     <td style="font-weight:600">${m.value} ${m.mtype==='weight'?'kg':'cm'}</td>
@@ -1047,6 +1051,8 @@ function renderMeasCard(b,idx){
     </div>
   </div>`;
 }
+function setMeasFilter(f){ S.measFilter=f; renderGrowth(); }
+function setVaxFilter(f){ S.vaxFilter=f; renderGrowth(); }
 async function handleAddMeas(babyId){
   const date=document.getElementById('md-'+babyId)?.value;
   const mtype=document.getElementById('mt-'+babyId)?.value;
@@ -1061,7 +1067,8 @@ async function handleDelMeas(id,babyId){
 function renderVaccineSection(){
   const all=S.babies.flatMap(b=>(S.vax[b.id]||[]).map(v=>({...v,baby:b})));
   all.sort((a,b)=>b.date.localeCompare(a.date));
-  const rows=all.map(v=>`<tr>
+  const visible=S.vaxFilter==='all'?all:all.filter(v=>v.baby_id===S.vaxFilter);
+  const rows=visible.map(v=>`<tr>
     <td style="color:var(--muted);white-space:nowrap">${v.date}</td>
     <td>${v.baby.emoji} ${esc(v.baby.name)}</td>
     <td style="font-weight:600">${esc(v.name)}</td>
@@ -1069,8 +1076,13 @@ function renderVaccineSection(){
     <td style="text-align:right"><button class="del-btn" onclick="handleDelVax('${v.id}','${v.baby_id}')">×</button></td>
   </tr>`).join('');
   const babyOpts=S.babies.map(b=>`<option value="${b.id}">${b.emoji} ${esc(b.name)}</option>`).join('');
+  const filterOpts=`<option value="all">All babies</option>`+S.babies.map(b=>`<option value="${b.id}"${S.vaxFilter===b.id?' selected':''}>${b.emoji} ${esc(b.name)}</option>`).join('');
   return `<div class="card">
-    ${all.length?`<div style="overflow-x:auto;margin-bottom:14px"><table class="meas-table"><thead><tr><th>Date</th><th>Baby</th><th>Vaccine</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px">No vaccines recorded yet</p>`}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <span style="font-weight:600;font-size:13px;color:var(--muted)">${visible.length} record${visible.length!==1?'s':''}</span>
+      <select class="input" style="width:auto;padding:6px 10px;font-size:13px" onchange="setVaxFilter(this.value)">${filterOpts}</select>
+    </div>
+    ${rows.length?`<div style="overflow-x:auto;margin-bottom:14px"><table class="meas-table"><thead><tr><th>Date</th><th>Baby</th><th>Vaccine</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px">No vaccines recorded</p>`}
     <div class="vax-form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
       <select class="input" id="vb">${babyOpts}</select>
       <input class="input" id="vd" type="date" value="${today()}"/>
