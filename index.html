@@ -1083,9 +1083,10 @@ async function renderSummary(){
       const poCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const n=byDate[d][b.id].filter(e=>e.type==='potty').length;return `<td style="font-weight:600;color:${bc.d}">${n||'-'}</td>`;}).join('');
       return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}<td>${pumpCell}</td>${urCells}${poCells}</tr>`;
     }).join('');
-    const bThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">${b.emoji} ${esc(b.name)}</th>`;}).join('');
-    const urThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💧 ${esc(b.name)}</th>`;}).join('');
-    const poThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💩 ${esc(b.name)}</th>`;}).join('');
+    const ini=b=>b.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const bThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">${b.emoji} ${ini(b)}</th>`;}).join('');
+    const urThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💧 ${ini(b)}</th>`;}).join('');
+    const poThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💩 ${ini(b)}</th>`;}).join('');
     const growthCards=S.babies.map((b,i)=>{
       const c=getBabyColor(b.id,i); const ms=S.meas[b.id]||[];
       const w=ms.find(m=>m.mtype==='weight'),l=ms.find(m=>m.mtype==='length'),h=ms.find(m=>m.mtype==='head');
