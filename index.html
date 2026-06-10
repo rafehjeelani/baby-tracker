@@ -959,7 +959,9 @@ async function handleAddBaby(){
 // ── Auth state listener ───────────────────────────────────────
 function listenAuth(){
   sb.auth.onAuthStateChange(async(event,session)=>{
-    if(event==='SIGNED_IN'&&session){
+    // Only act on SIGNED_IN when the user is on the auth screen (fresh login).
+    // Ignore token refreshes that fire SIGNED_IN while already inside the app.
+    if(event==='SIGNED_IN'&&session&&S.screen==='auth'){
       S.user=session.user;
       try{
         await loadProfile(); await loadFamilies();
