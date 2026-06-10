@@ -219,7 +219,7 @@ let S = {
   screen:'loading', authMode:'signin', user:null, profile:null,
   families:[], family:null, members:[], babies:[],
   entries:{}, meas:{}, vax:{}, notes:{}, pump:{},
-  curDate:today(), selType:{}, milkType:{}, editEntry:{}, measFilter:'all', vaxFilter:'all', tab:'daily',
+  curDate:today(), selType:{}, milkType:{}, editEntry:{}, measFilter:'all', vaxFilter:'all', summaryDays:7, tab:'daily',
   pendingInvite:null, invitePreview:null,
   babyColors: JSON.parse(localStorage.getItem('bt_colors')||'{}'),
   familyColor: localStorage.getItem('bt_fam_color')||'blue'
@@ -1102,11 +1102,14 @@ async function handleDelVax(id,babyId){
 }
 
 // ── Summary tab ──────────────────────────────────────────────
+function setSummaryDays(n){ S.summaryDays=n; renderSummary(); }
 async function renderSummary(){
   const m=document.getElementById('main');
-  m.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;padding:60px 0"><div class="spinner"></div></div>`;
+  const dayOpts=[[7,'7 days'],[14,'14 days'],[30,'30 days']];
+  const filterPills=dayOpts.map(([n,l])=>`<button class="pill${S.summaryDays===n?' active':''}" onclick="setSummaryDays(${n})">${l}</button>`).join('');
+  m.innerHTML=`<div class="type-pills" style="padding:0 0 10px">${filterPills}</div><div style="display:flex;align-items:center;justify-content:center;padding:60px 0"><div class="spinner"></div></div>`;
   const dates=[];
-  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dates.push(d.toISOString().split('T')[0]);}
+  for(let i=0;i<S.summaryDays;i++){const d=new Date();d.setDate(d.getDate()-i);dates.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));}
   try{
     const [{data,error},{data:pumpData,error:pumpErr}]=await Promise.all([
       sb.from('entries').select('*').eq('family_id',S.family.id).in('date',dates).order('date'),
@@ -1156,7 +1159,8 @@ async function renderSummary(){
     allVax.sort((a,b)=>b.date.localeCompare(a.date));
     const vaxRows=allVax.slice(0,8).map(v=>`<li style="font-size:13px;padding:7px 0;border-bottom:1px solid var(--border);display:flex;gap:8px"><span style="color:var(--muted);font-size:12px;min-width:80px">${v.date}</span><span>${v.baby.emoji} ${esc(v.baby.name)}: <strong>${esc(v.name)}</strong></span></li>`).join('');
     m.innerHTML=`
-      <div class="section-title">7-Day Feeding (ml)</div>
+      <div class="type-pills" style="padding:0 0 10px">${filterPills}</div>
+      <div class="section-title">${S.summaryDays}-Day Feeding (ml)</div>
       <div class="card" style="overflow-x:auto;padding:0"><table class="sum-table" style="margin:0">
         <thead><tr><th>Date</th>${bThs}<th style="color:#7c3aed">🤱 ml</th>${urThs}${poThs}</tr></thead>
         <tbody>${rows}</tbody>
