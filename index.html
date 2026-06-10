@@ -302,6 +302,8 @@ async function loadBabies(){
   const {data,error}=await sb.from('babies').select('*').eq('family_id',S.family.id).order('created_at');
   if(error) throw error;
   S.babies=data||[];
+  // Sync DB colours into local state
+  S.babies.forEach(b=>{ if(b.color) S.babyColors[b.id]=b.color; });
 }
 async function addBaby(name,emoji,dob){
   const {error}=await sb.from('babies').insert({family_id:S.family.id,name,emoji,dob:dob||null});
@@ -413,9 +415,12 @@ async function acceptInvite(token){
 }
 
 // ── Color picker ─────────────────────────────────────────────
-function setBabyColor(babyId, colorId){
+async function setBabyColor(babyId, colorId){
   S.babyColors[babyId]=colorId;
   localStorage.setItem('bt_colors',JSON.stringify(S.babyColors));
+  const b=S.babies.find(b=>b.id===babyId);
+  if(b) b.color=colorId;
+  sb.from('babies').update({color:colorId}).eq('id',babyId);
   if(S.tab==='settings') renderSettings();
   else rerenderBabyCard(babyId);
 }
