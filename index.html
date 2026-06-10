@@ -960,6 +960,41 @@ function bindDailyNoteEvents(){
   ta.addEventListener('input',()=>save(ta.value));
 }
 
+// ── Mini line chart ──────────────────────────────────────────
+function renderMiniChart(pts, color, unit){
+  if(pts.length<2) return '';
+  const W=300,H=110,PL=38,PR=12,PT=10,PB=28;
+  const iW=W-PL-PR, iH=H-PT-PB;
+  const vals=pts.map(p=>p.v), dates=pts.map(p=>p.d);
+  const minV=Math.min(...vals), maxV=Math.max(...vals);
+  const rng=maxV-minV||1;
+  const cx=i=>PL+i/(pts.length-1)*iW;
+  const cy=v=>PT+iH-(v-minV)/rng*iH;
+  const polyline=pts.map((p,i)=>`${cx(i).toFixed(1)},${cy(p.v).toFixed(1)}`).join(' ');
+  // y-axis labels: 3 ticks
+  const ticks=[minV, minV+rng/2, maxV].map(v=>{
+    const y=cy(v);
+    return `<text x="${PL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="#94a3b8">${v%1===0?v:v.toFixed(1)}</text>
+    <line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+  }).join('');
+  // x-axis: show first, middle, last date (short format)
+  const xLabels=[0, Math.floor((pts.length-1)/2), pts.length-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>{
+    const lbl=dates[i].slice(5); // MM-DD
+    return `<text x="${cx(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="9" fill="#94a3b8">${lbl}</text>`;
+  }).join('');
+  const dots=pts.map((p,i)=>`<circle cx="${cx(i).toFixed(1)}" cy="${cy(p.v).toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+    <title>${dates[i]}: ${p.v} ${unit}</title>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block;overflow:visible">
+    ${ticks}
+    <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="${polyline}" fill="${color}" fill-opacity=".08" stroke="none"
+      points="${polyline} ${(W-PR).toFixed(1)},${H-PB} ${PL},${H-PB}"/>
+    ${dots}
+    ${xLabels}
+    <text x="${PL-4}" y="${PT+4}" text-anchor="end" font-size="9" fill="${color}" font-weight="600">${unit}</text>
+  </svg>`;
+}
+
 // ── Growth tab ───────────────────────────────────────────────
 function renderGrowth(){
   const m=document.getElementById('main');
@@ -971,6 +1006,9 @@ function renderGrowth(){
 function renderMeasCard(b,idx){
   const c=getBabyColor(b.id,idx);
   const ms=S.meas[b.id]||[];
+  const sorted=ms.slice().sort((a,z)=>a.date.localeCompare(z.date));
+  const wPts=sorted.filter(m=>m.mtype==='weight').map(m=>({d:m.date,v:m.value}));
+  const lPts=sorted.filter(m=>m.mtype==='length').map(m=>({d:m.date,v:m.value}));
   const lat={w:ms.find(m=>m.mtype==='weight'),l:ms.find(m=>m.mtype==='length'),h:ms.find(m=>m.mtype==='head')};
   const rows=ms.slice(0,8).map(m=>`<tr>
     <td style="color:var(--muted)">${m.date}</td>
@@ -978,6 +1016,12 @@ function renderMeasCard(b,idx){
     <td style="font-weight:600">${m.value} ${m.mtype==='weight'?'kg':'cm'}</td>
     <td style="text-align:right"><button class="del-btn" onclick="handleDelMeas('${m.id}','${b.id}')">×</button></td>
   </tr>`).join('');
+  const wChart=renderMiniChart(wPts,c.d,'kg');
+  const lChart=renderMiniChart(lPts,c.m,'cm');
+  const charts=(wChart||lChart)?`<div style="display:grid;grid-template-columns:${wChart&&lChart?'1fr 1fr':'1fr'};gap:12px;margin-bottom:14px">
+    ${wChart?`<div><div style="font-size:11px;font-weight:600;color:${c.d};margin-bottom:4px">⚖️ Weight</div>${wChart}</div>`:''}
+    ${lChart?`<div><div style="font-size:11px;font-weight:600;color:${c.d};margin-bottom:4px">📏 Length</div>${lChart}</div>`:''}
+  </div>`:'';
   return `<div class="card">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <span style="font-size:24px">${b.emoji}</span>
@@ -989,6 +1033,7 @@ function renderMeasCard(b,idx){
       ${lat.h?`<span class="badge" style="background:${c.m};color:${c.d}">🧠 ${lat.h.value} cm</span>`:''}
       ${!lat.w&&!lat.l&&!lat.h?`<span style="font-size:13px;color:var(--muted)">No measurements yet</span>`:''}
     </div>
+    ${charts}
     ${ms.length?`<div style="overflow-x:auto"><table class="meas-table"><thead><tr><th>Date</th><th>Type</th><th>Value</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
     <div class="meas-form-grid" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <input class="input" id="md-${b.id}" type="date" value="${today()}"/>
