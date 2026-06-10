@@ -8,8 +8,8 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#eef5fd;--card:#fff;--border:#d0e4f7;--text:#0d2b45;--muted:#5a7fa0;
-  --primary:#2563eb;--primary-l:#dbeafe;--primary-m:#93c5fd;--primary-d:#1d4ed8;
+  --bg:#fdf8f3;--card:#fffcf9;--border:#e8ddd0;--text:#2d1f17;--muted:#9e8c7e;
+  --primary:#c8896a;--primary-l:#fdecd7;--primary-m:#e8b898;--primary-d:#a86b4d;
   --radius:16px;--nav:62px;--safe:env(safe-area-inset-bottom,0px)
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
@@ -21,14 +21,14 @@ a{cursor:pointer;color:var(--primary);text-decoration:none}
 .card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:16px;box-shadow:0 2px 8px rgba(15,45,80,.05)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 20px;border-radius:12px;font-weight:600;font-size:15px;transition:all .18s;white-space:nowrap}
 .btn:active{transform:scale(.97)}
-.btn-primary{background:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(37,99,235,.28)}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 3px 10px rgba(200,137,106,.35)}
 .btn-primary:hover{background:var(--primary-d)}
 .btn-danger{background:#ef4444;color:#fff;box-shadow:0 2px 6px rgba(239,68,68,.25)}
 .btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--text)}
 .btn-ghost:hover{background:var(--bg)}
 .btn-sm{padding:7px 14px;font-size:13px;border-radius:9px}
 .input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:11px;background:#fff;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;line-height:1.4}
-.input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(200,137,106,.12)}
 .input::placeholder{color:#aabdce}
 label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;letter-spacing:.01em}
 .field{margin-bottom:16px}
@@ -104,18 +104,22 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .del-btn:hover{opacity:1}
 .edit-btn{color:var(--muted);font-size:14px;line-height:1;padding:3px 5px;border-radius:6px;flex-shrink:0;opacity:.6;transition:opacity .15s}
 .edit-btn:hover{opacity:1}
+.ins-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ins-metric{background:var(--bg);border-radius:10px;padding:8px 6px;text-align:center}
+.ins-val{font-size:15px;font-weight:700;line-height:1.2}
+.ins-lbl{font-size:10px;color:var(--muted);margin-top:3px;font-weight:500;text-transform:uppercase;letter-spacing:.03em}
 .log-empty{padding:14px;text-align:center;color:var(--muted);font-size:13px}
 
 /* ── Add entry area ── */
-.add-area{padding:12px 14px;border-top:1px solid var(--border);background:#f5f9ff}
+.add-area{padding:12px 14px;border-top:1px solid var(--border);background:#fef7f0}
 .type-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .pill{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:#fff;color:var(--muted);transition:all .15s;white-space:nowrap}
-.pill.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 2px 6px rgba(37,99,235,.25)}
+.pill.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 2px 6px rgba(200,137,106,.35)}
 .add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .add-row .input{padding:9px 11px;height:40px;box-sizing:border-box}
 
 /* ── Auth ── */
-.auth-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#1e3a8a 0%,#2563eb 55%,#60a5fa 100%);padding:20px}
+.auth-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,#7c4a2d 0%,#c8896a 55%,#e8b898 100%);padding:20px}
 .auth-card{background:#fff;border-radius:24px;padding:36px 28px;width:100%;max-width:400px;box-shadow:0 28px 64px rgba(0,0,0,.18)}
 .auth-logo{text-align:center;margin-bottom:18px}
 .auth-logo span{font-size:44px}
@@ -688,12 +692,73 @@ function renderTab(){
   });
 }
 
+// ── Insights helpers ─────────────────────────────────────────
+function toMin(t){const[h,m]=(t||'0:0').split(':').map(Number);return h*60+m;}
+function groupFeeds(milkEnts){
+  const sorted=[...milkEnts].sort((a,b)=>a.time.localeCompare(b.time));
+  const sessions=[];
+  sorted.forEach(e=>{
+    const last=sessions[sessions.length-1];
+    if(last&&toMin(e.time)-toMin(last[last.length-1].time)<30) last.push(e);
+    else sessions.push([e]);
+  });
+  return sessions;
+}
+function computeInsights(milkEnts){
+  if(!milkEnts.length) return null;
+  const sessions=groupFeeds(milkEnts);
+  const totalMl=milkEnts.reduce((s,e)=>s+(e.ml||0),0);
+  const avgMl=sessions.length?Math.round(totalMl/sessions.length):0;
+  const sessionTimes=sessions.map(s=>({start:toMin(s[0].time),end:toMin(s[s.length-1].time),ml:s.reduce((t,e)=>t+(e.ml||0),0),tags:s.map(e=>e.note||'').join('+') }));
+  const gaps=[];
+  for(let i=1;i<sessionTimes.length;i++) gaps.push(sessionTimes[i].start-sessionTimes[i-1].end);
+  const fmtGap=m=>m>=60?`${Math.floor(m/60)}h ${m%60}m`:`${m}m`;
+  const bmSessions=sessionTimes.filter(s=>s.tags.includes('BM')).length;
+  const fmSessions=sessionTimes.filter(s=>s.tags.includes('FM')).length;
+  const now=new Date();
+  const nowMin=now.getHours()*60+now.getMinutes();
+  const lastMin=toMin(milkEnts.sort((a,b)=>b.time.localeCompare(a.time))[0].time);
+  const sinceMin=nowMin>=lastMin?nowMin-lastMin:null;
+  return{sessions:sessions.length,totalMl,avgMl,longestGap:gaps.length?fmtGap(Math.max(...gaps)):null,shortestGap:gaps.length?fmtGap(Math.min(...gaps)):null,bmSessions,fmSessions,sinceMin,gaps};
+}
+function renderInsightsSection(){
+  const cards=S.babies.map((b,idx)=>{
+    const ents=(S.entries[S.curDate]||{})[b.id]||[];
+    const milk=ents.filter(e=>e.type==='milk');
+    const ins=computeInsights(milk);
+    const c=getBabyColor(b.id,idx);
+    if(!ins) return `<div class="card" style="text-align:center;padding:18px 14px">
+      <div style="font-size:20px;margin-bottom:6px">${b.emoji}</div>
+      <div style="font-weight:700;color:${c.d};margin-bottom:4px">${esc(b.name)}</div>
+      <div style="font-size:13px;color:var(--muted)">No feeds logged today</div>
+    </div>`;
+    const sinceStr=ins.sinceMin!=null?(ins.sinceMin>=60?`${Math.floor(ins.sinceMin/60)}h ${ins.sinceMin%60}m ago`:`${ins.sinceMin}m ago`):'—';
+    const bmFmStr=(ins.bmSessions||ins.fmSessions)?`<div class="ins-metric"><div class="ins-val">${ins.bmSessions}·${ins.fmSessions}</div><div class="ins-lbl">BM · FM</div></div>`:'';
+    return `<div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:20px">${b.emoji}</span>
+        <span style="font-weight:700;font-size:14px;color:${c.d}">${esc(b.name)}</span>
+      </div>
+      <div class="ins-grid">
+        <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.sessions}</div><div class="ins-lbl">sessions</div></div>
+        <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.avgMl}<span style="font-size:12px">ml</span></div><div class="ins-lbl">avg/feed</div></div>
+        <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.totalMl}<span style="font-size:12px">ml</span></div><div class="ins-lbl">total</div></div>
+        <div class="ins-metric"><div class="ins-val">${sinceStr}</div><div class="ins-lbl">since last</div></div>
+        ${ins.longestGap?`<div class="ins-metric"><div class="ins-val">⬆ ${ins.longestGap}</div><div class="ins-lbl">longest gap</div></div>`:''}
+        ${ins.shortestGap&&ins.gaps.length>1?`<div class="ins-metric"><div class="ins-val">⬇ ${ins.shortestGap}</div><div class="ins-lbl">shortest gap</div></div>`:''}
+        ${bmFmStr}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="section-title">📊 Today's Insights</div><div class="baby-grid">${cards}</div>`;
+}
+
 // ── Daily tab ────────────────────────────────────────────────
 function renderDaily(){
   const m=document.getElementById('main');
   m.innerHTML=renderDateNav()+`<div style="height:12px"></div>`+renderGlance()+
     `<div class="baby-grid">${S.babies.map((b,i)=>renderBabyCard(b,i)).join('')}</div>`+
-    renderPumpSection()+renderDailyNotes();
+    renderInsightsSection()+renderPumpSection()+renderDailyNotes();
   loadNote(S.curDate).then(()=>{
     const ta=document.getElementById('daily-note-ta');
     if(ta) ta.value=S.notes[S.curDate]||'';
@@ -756,7 +821,11 @@ function renderBabyCard(b,idx){
   const ents=[...(S.entries[S.curDate]||{})[b.id]||[]].sort((a,b)=>b.time.localeCompare(a.time));
   const milkEntsAll=ents.filter(e=>e.type==='milk');
   const milkMl=milkEntsAll.reduce((s,e)=>s+(e.ml||0),0);
-  const lastFeed=milkEntsAll[0]?.time;
+  const lastFeedToday=milkEntsAll[0]?.time;
+  const yest=(()=>{const d=new Date(S.curDate+'T00:00:00');d.setDate(d.getDate()-1);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());})();
+  const yestMilk=((S.entries[yest]||{})[b.id]||[]).filter(e=>e.type==='milk').sort((a,z)=>z.time.localeCompare(a.time));
+  const lastFeed=lastFeedToday||yestMilk[0]?.time;
+  const lastFeedLabel=lastFeed?(lastFeedToday?fmt12(lastFeed):'↩ '+fmt12(lastFeed)):null;
   const urine=ents.filter(e=>e.type==='urine').length;
   const potty=ents.filter(e=>e.type==='potty').length;
   const vit=ents.filter(e=>e.type==='vitamin').length;
@@ -774,7 +843,7 @@ function renderBabyCard(b,idx){
     <div class="baby-card-head" style="background:${c.m}">
       <span class="b-emoji">${b.emoji}</span>
       <div class="b-info">
-        <div class="bname" style="color:${c.d}">${esc(b.name)}${lastFeed?`<span style="font-size:11px;font-weight:500;opacity:.8;margin-left:8px">🍼 ${fmt12(lastFeed)}</span>`:''}</div>
+        <div class="bname" style="color:${c.d}">${esc(b.name)}${lastFeedLabel?`<span style="font-size:11px;font-weight:500;opacity:.8;margin-left:8px">🍼 ${lastFeedLabel}</span>`:''}</div>
         <div class="baby-chips">
           <span style="background:${c.l};color:${c.d}">🍼 ${milkMl}ml</span>
           <span style="background:${c.l};color:${c.d}">💧 ${urine}</span>
