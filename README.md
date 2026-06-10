@@ -64,8 +64,10 @@ A family baby tracking web app built with vanilla JS and Supabase. Track feeds, 
   - Vaccine history table: date, baby, vaccine name, notes
   - Add vaccine form
 
-### Summary Tab (7-day view)
-- Queries last 7 days of entries and pump sessions in parallel
+### Summary Tab
+- **Date range filter pills** — **7 days · 14 days · 30 days** (default 7 days)
+- Rows sorted reverse-chronologically — today at the top, oldest at the bottom
+- Queries the selected date range of entries and pump sessions in parallel
 - Table columns:
   - **Date**
   - Per-baby milk: feed count (e.g. `3×`) + bar chart + ml total, coloured in each baby's theme
