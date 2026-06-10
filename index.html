@@ -754,7 +754,9 @@ function renderGlance(){
 function renderBabyCard(b,idx){
   const c=getBabyColor(b.id,idx);
   const ents=[...(S.entries[S.curDate]||{})[b.id]||[]].sort((a,b)=>b.time.localeCompare(a.time));
-  const milkMl=ents.filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+  const milkEntsAll=ents.filter(e=>e.type==='milk');
+  const milkMl=milkEntsAll.reduce((s,e)=>s+(e.ml||0),0);
+  const lastFeed=milkEntsAll[0]?.time;
   const urine=ents.filter(e=>e.type==='urine').length;
   const potty=ents.filter(e=>e.type==='potty').length;
   const vit=ents.filter(e=>e.type==='vitamin').length;
@@ -772,7 +774,7 @@ function renderBabyCard(b,idx){
     <div class="baby-card-head" style="background:${c.m}">
       <span class="b-emoji">${b.emoji}</span>
       <div class="b-info">
-        <div class="bname" style="color:${c.d}">${esc(b.name)}</div>
+        <div class="bname" style="color:${c.d}">${esc(b.name)}${lastFeed?`<span style="font-size:11px;font-weight:500;opacity:.8;margin-left:8px">🍼 ${fmt12(lastFeed)}</span>`:''}</div>
         <div class="baby-chips">
           <span style="background:${c.l};color:${c.d}">🍼 ${milkMl}ml</span>
           <span style="background:${c.l};color:${c.d}">💧 ${urine}</span>
