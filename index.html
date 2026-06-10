@@ -759,7 +759,7 @@ function renderInsightsSection(){
 // ── Daily tab ────────────────────────────────────────────────
 function renderDaily(){
   const m=document.getElementById('main');
-  m.innerHTML=renderDateNav()+`<div style="height:12px"></div>`+renderGlance()+
+  m.innerHTML=renderDateNav()+`<div style="height:12px"></div>`+
     `<div class="baby-grid">${S.babies.map((b,i)=>renderBabyCard(b,i)).join('')}</div>`+
     renderPumpSection()+renderInsightsSection()+renderDailyNotes();
   loadNote(S.curDate).then(()=>{
