@@ -205,7 +205,7 @@ function getBabyColor(babyId, idx) {
 let S = {
   screen:'loading', authMode:'signin', user:null, profile:null,
   families:[], family:null, members:[], babies:[],
-  entries:{}, meas:{}, vax:{}, notes:{},
+  entries:{}, meas:{}, vax:{}, notes:{}, pump:{},
   curDate:today(), selType:{}, tab:'daily',
   pendingInvite:null, invitePreview:null,
   babyColors: JSON.parse(localStorage.getItem('bt_colors')||'{}')
@@ -250,6 +250,7 @@ const TYPES=[
   {k:'vitamin', icon:'💊',label:'Vitamin'},
   {k:'medicine',icon:'🩹',label:'Medicine'}
 ];
+const PUMP_KEY='pump';
 const BABY_EMOJIS=['🌸','⭐','🐻','🦋','🌺','🚀','🐣','🦁','🌼','🐧','🍒','🎀'];
 const CHART_COLORS=['#3b82f6','#ec4899','#10b981','#f59e0b','#8b5cf6'];
 
@@ -268,9 +269,9 @@ async function loadFamilies(){
   S.families=(data||[]).map(r=>({...r.families,myRole:r.role}));
 }
 async function openFamily(fam){
-  S.family=fam; S.tab='daily'; S.entries={}; S.meas={}; S.vax={}; S.notes={};
+  S.family=fam; S.tab='daily'; S.entries={}; S.meas={}; S.vax={}; S.notes={}; S.pump={};
   await Promise.all([loadMembers(),loadBabies()]);
-  await Promise.all([loadEntries(S.curDate),loadMeasurements(),loadVaccines()]);
+  await Promise.all([loadEntries(S.curDate),loadMeasurements(),loadVaccines(),loadPump(S.curDate)]);
   show('tracker');
 }
 async function createFamily(name,babies){
@@ -355,6 +356,23 @@ async function deleteVaccine(id,babyId){
   const {error}=await sb.from('vaccines').delete().eq('id',id);
   if(error) throw error;
   if(S.vax[babyId]) S.vax[babyId]=S.vax[babyId].filter(v=>v.id!==id);
+}
+async function loadPump(date){
+  if(S.pump[date]) return;
+  const {data,error}=await sb.from('pump_sessions').select('*').eq('family_id',S.family.id).eq('date',date).order('time');
+  if(error) throw error;
+  S.pump[date]=data||[];
+}
+async function addPump(date,time,ml,note){
+  const {error}=await sb.from('pump_sessions').insert({family_id:S.family.id,date,time,ml:ml||null,note:note||null,created_by:S.user.id});
+  if(error) throw error;
+  delete S.pump[date];
+  await loadPump(date);
+}
+async function deletePump(id,date){
+  const {error}=await sb.from('pump_sessions').delete().eq('id',id);
+  if(error) throw error;
+  if(S.pump[date]) S.pump[date]=S.pump[date].filter(p=>p.id!==id);
 }
 async function loadNote(date){
   if(S.notes[date]!==undefined) return;
@@ -589,8 +607,8 @@ function renderTracker(a){
 async function refreshAll(){
   try{
     await Promise.all([loadMembers(),loadBabies()]);
-    await Promise.all([loadEntries(S.curDate),loadMeasurements(),loadVaccines()]);
-    delete S.notes[S.curDate]; renderTab(); toast('Refreshed');
+    await Promise.all([loadEntries(S.curDate),loadMeasurements(),loadVaccines(),loadPump(S.curDate)]);
+    delete S.notes[S.curDate]; delete S.pump[S.curDate]; await loadPump(S.curDate); renderTab(); toast('Refreshed');
   }catch(e){toast(e.message);}
 }
 function setTab(t){ S.tab=t; renderTab(); }
@@ -611,7 +629,7 @@ function renderDaily(){
   const m=document.getElementById('main');
   m.innerHTML=renderDateNav()+renderGlance()+
     `<div class="baby-grid">${S.babies.map((b,i)=>renderBabyCard(b,i)).join('')}</div>`+
-    renderDailyNotes();
+    renderPumpSection()+renderDailyNotes();
   loadNote(S.curDate).then(()=>{
     const ta=document.getElementById('daily-note-ta');
     if(ta) ta.value=S.notes[S.curDate]||'';
@@ -629,10 +647,20 @@ function renderDateNav(){
 async function changeDate(d){
   const dt=new Date(S.curDate+'T00:00:00'); dt.setDate(dt.getDate()+d);
   S.curDate=dt.toISOString().split('T')[0];
-  if(!S.entries[S.curDate]) await loadEntries(S.curDate);
+  await Promise.all([
+    S.entries[S.curDate]?null:loadEntries(S.curDate),
+    S.pump[S.curDate]?null:loadPump(S.curDate)
+  ].filter(Boolean));
   renderTab();
 }
-async function goToday(){ S.curDate=today(); if(!S.entries[S.curDate]) await loadEntries(S.curDate); renderTab(); }
+async function goToday(){
+  S.curDate=today();
+  await Promise.all([
+    S.entries[S.curDate]?null:loadEntries(S.curDate),
+    S.pump[S.curDate]?null:loadPump(S.curDate)
+  ].filter(Boolean));
+  renderTab();
+}
 
 function renderGlance(){
   const ents=S.entries[S.curDate]||{};
@@ -663,6 +691,7 @@ function renderBabyCard(b,idx){
   const milkMl=ents.filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
   const urine=ents.filter(e=>e.type==='urine').length;
   const potty=ents.filter(e=>e.type==='potty').length;
+  const vit=ents.filter(e=>e.type==='vitamin').length;
   const selType=S.selType[b.id]||'milk';
   const logHTML=ents.length
     ? ents.map(e=>`<div class="log-entry"><span class="log-time">${fmt12(e.time)}</span><span class="log-desc">${entryDesc(e)}</span><button class="del-btn" onclick="handleDelEntry('${e.id}','${b.id}')">×</button></div>`).join('')
@@ -676,6 +705,7 @@ function renderBabyCard(b,idx){
           <span style="background:${c.l};color:${c.d}">🍼 ${milkMl}ml</span>
           <span style="background:${c.l};color:${c.d}">💧 ${urine}</span>
           <span style="background:${c.l};color:${c.d}">💩 ${potty}</span>
+          ${vit?`<span style="background:${c.l};color:${c.d}">💊 ${vit}</span>`:''}
         </div>
       </div>
     </div>
@@ -731,6 +761,48 @@ async function handleDelEntry(id,babyId){
     await deleteEntry(id,babyId);
     rerenderBabyCard(babyId);
     document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+  }catch(e){toast(e.message);}
+}
+function renderPumpSection(){
+  const sessions=S.pump[S.curDate]||[];
+  const totalMl=sessions.reduce((s,p)=>s+(p.ml||0),0);
+  const rows=sessions.map(p=>`<div class="log-entry">
+    <span class="log-time">${fmt12(p.time)}</span>
+    <span class="log-desc">🤱 ${p.ml||0} ml${p.note?` — ${esc(p.note)}`:''}</span>
+    <button class="del-btn" onclick="handleDelPump('${p.id}')">×</button>
+  </div>`).join('');
+  return `<div class="card" style="margin-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="section-title" style="margin:0">🤱 Pump Log</div>
+      ${totalMl?`<span style="font-size:13px;font-weight:700;color:var(--primary)">${totalMl} ml today</span>`:''}
+    </div>
+    <div id="pump-log">
+      ${rows||`<div class="log-empty">No pump sessions recorded</div>`}
+    </div>
+    <div class="add-form-row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <input class="input" id="pump-time" type="time" value="${nowTime()}" style="width:108px;flex-shrink:0"/>
+      <input class="input" id="pump-ml" type="number" placeholder="ml" min="0" style="width:80px;flex-shrink:0"/>
+      <input class="input" id="pump-note" type="text" placeholder="Note (opt)" style="flex:1;min-width:80px"/>
+      <button class="btn btn-primary btn-sm" onclick="handleAddPump()">＋ Add</button>
+    </div>
+  </div>`;
+}
+async function handleAddPump(){
+  const time=document.getElementById('pump-time')?.value||nowTime();
+  const ml=parseInt(document.getElementById('pump-ml')?.value||0);
+  const note=document.getElementById('pump-note')?.value.trim()||null;
+  if(!ml){toast('Enter ml amount');return;}
+  try{
+    await addPump(S.curDate,time,ml,note);
+    const m=document.getElementById('main');
+    if(m) m.querySelector('#pump-log')?.closest('.card')?.replaceWith(htmlToEl(renderPumpSection()));
+  }catch(e){toast(e.message);}
+}
+async function handleDelPump(id){
+  try{
+    await deletePump(id,S.curDate);
+    const m=document.getElementById('main');
+    if(m) m.querySelector('#pump-log')?.closest('.card')?.replaceWith(htmlToEl(renderPumpSection()));
   }catch(e){toast(e.message);}
 }
 function renderDailyNotes(){
