@@ -169,8 +169,19 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .member-info{flex:1;min-width:0}
 .member-name{font-weight:600;font-size:14px}
 .member-email{font-size:12px;color:var(--muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.invite-link-box{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:12px;word-break:break-all;color:var(--primary);margin-top:10px;line-height:1.6}
+.invite-link-box{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px;font-size:12px;overflow-wrap:break-word;word-break:break-word;color:var(--primary);margin-top:10px;line-height:1.6}
 .settings-actions{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
+/* ── Responsive: 2-col grids become 1-col on narrow screens ── */
+@media(max-width:440px){
+  .fam-grid{grid-template-columns:1fr}
+  .baby-grid{grid-template-columns:1fr}
+  .meas-form-grid,.vax-form-grid{grid-template-columns:1fr !important}
+  .meas-form-grid button,.vax-form-grid button{grid-column:1 !important}
+  .add-row{flex-wrap:wrap}
+  .add-row input[type=time]{width:100% !important;min-width:unset !important}
+  .pump-form-row{flex-wrap:wrap}
+  .pump-form-row input,.pump-form-row button{flex:1 1 100% !important;width:100% !important;min-width:unset !important}
+}
 </style>
 </head>
 <body>
@@ -779,11 +790,11 @@ function renderPumpSection(){
     <div id="pump-log">
       ${rows||`<div class="log-empty">No pump sessions recorded</div>`}
     </div>
-    <div class="add-form-row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+    <div class="pump-form-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);align-items:center">
       <input class="input" id="pump-time" type="time" value="${nowTime()}" style="width:120px;min-width:120px;flex-shrink:0"/>
       <input class="input" id="pump-ml" type="number" placeholder="ml" min="0" style="width:80px;flex-shrink:0"/>
-      <input class="input" id="pump-note" type="text" placeholder="Note (opt)" style="flex:1;min-width:80px"/>
-      <button class="btn btn-primary btn-sm" onclick="handleAddPump()">＋ Add</button>
+      <input class="input" id="pump-note" type="text" placeholder="Note (opt)" style="flex:1;min-width:100px"/>
+      <button class="btn btn-primary btn-sm" onclick="handleAddPump()" style="flex-shrink:0">＋ Add</button>
     </div>
   </div>`;
 }
@@ -849,7 +860,7 @@ function renderMeasCard(b,idx){
       ${!lat.w&&!lat.l&&!lat.h?`<span style="font-size:13px;color:var(--muted)">No measurements yet</span>`:''}
     </div>
     ${ms.length?`<div style="overflow-x:auto"><table class="meas-table"><thead><tr><th>Date</th><th>Type</th><th>Value</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
-    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div class="meas-form-grid" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <input class="input" id="md-${b.id}" type="date" value="${today()}"/>
       <select class="input" id="mt-${b.id}">
         <option value="weight">Weight (kg)</option>
@@ -885,7 +896,7 @@ function renderVaccineSection(){
   const babyOpts=S.babies.map(b=>`<option value="${b.id}">${b.emoji} ${esc(b.name)}</option>`).join('');
   return `<div class="card">
     ${all.length?`<div style="overflow-x:auto;margin-bottom:14px"><table class="meas-table"><thead><tr><th>Date</th><th>Baby</th><th>Vaccine</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px">No vaccines recorded yet</p>`}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+    <div class="vax-form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
       <select class="input" id="vb">${babyOpts}</select>
       <input class="input" id="vd" type="date" value="${today()}"/>
       <input class="input" id="vn" type="text" placeholder="Vaccine name"/>
