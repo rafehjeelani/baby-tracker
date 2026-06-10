@@ -849,15 +849,15 @@ function renderMeasCard(b,idx){
       ${!lat.w&&!lat.l&&!lat.h?`<span style="font-size:13px;color:var(--muted)">No measurements yet</span>`:''}
     </div>
     ${ms.length?`<div style="overflow-x:auto"><table class="meas-table"><thead><tr><th>Date</th><th>Type</th><th>Value</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:''}
-    <div class="add-form-row">
-      <input class="input" id="md-${b.id}" type="date" value="${today()}" style="width:130px;flex-shrink:0"/>
-      <select class="input" id="mt-${b.id}" style="width:120px;flex-shrink:0">
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <input class="input" id="md-${b.id}" type="date" value="${today()}"/>
+      <select class="input" id="mt-${b.id}">
         <option value="weight">Weight (kg)</option>
         <option value="length">Length (cm)</option>
         <option value="head">Head (cm)</option>
       </select>
-      <input class="input" id="mv-${b.id}" type="number" step="0.1" placeholder="Value" style="width:90px;flex-shrink:0"/>
-      <button class="btn btn-primary btn-sm" onclick="handleAddMeas('${b.id}')">Add</button>
+      <input class="input" id="mv-${b.id}" type="number" step="0.1" placeholder="Value"/>
+      <button class="btn btn-primary btn-sm" onclick="handleAddMeas('${b.id}')" style="width:100%">Add</button>
     </div>
   </div>`;
 }
@@ -885,12 +885,12 @@ function renderVaccineSection(){
   const babyOpts=S.babies.map(b=>`<option value="${b.id}">${b.emoji} ${esc(b.name)}</option>`).join('');
   return `<div class="card">
     ${all.length?`<div style="overflow-x:auto;margin-bottom:14px"><table class="meas-table"><thead><tr><th>Date</th><th>Baby</th><th>Vaccine</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:`<p style="font-size:13px;color:var(--muted);margin-bottom:14px">No vaccines recorded yet</p>`}
-    <div class="add-form-row">
-      <select class="input" id="vb" style="width:130px;flex-shrink:0">${babyOpts}</select>
-      <input class="input" id="vd" type="date" value="${today()}" style="width:130px;flex-shrink:0"/>
-      <input class="input" id="vn" type="text" placeholder="Vaccine name" style="flex:1;min-width:110px"/>
-      <input class="input" id="vo" type="text" placeholder="Notes (opt)" style="flex:1;min-width:90px"/>
-      <button class="btn btn-primary btn-sm" onclick="handleAddVax()">Add</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+      <select class="input" id="vb">${babyOpts}</select>
+      <input class="input" id="vd" type="date" value="${today()}"/>
+      <input class="input" id="vn" type="text" placeholder="Vaccine name"/>
+      <input class="input" id="vo" type="text" placeholder="Notes (optional)"/>
+      <button class="btn btn-primary btn-sm" onclick="handleAddVax()" style="grid-column:1/-1">Add Vaccine</button>
     </div>
   </div>`;
 }
@@ -1059,7 +1059,9 @@ function listenAuth(){
           try{const r=await acceptInvite(S.pendingInvite);if(r&&r.ok)toast('Joined '+r.family_name+'!');}catch(e){toast(e.message);}
           S.pendingInvite=null; await loadFamilies();
         }
-        if(S.families.length===0) show('setup'); else show('families');
+        if(S.families.length===0) show('setup');
+        else if(S.families.length===1) await openFamily(S.families[0]);
+        else show('families');
       }catch(e){ console.error(e); show('auth'); }
     } else if(event==='SIGNED_OUT'){
       S={...S,screen:'auth',user:null,profile:null,families:[],family:null,members:[],babies:[],entries:{},meas:{},vax:{},notes:{},tab:'daily'};
