@@ -416,7 +416,8 @@ async function acceptInvite(token){
 function setBabyColor(babyId, colorId){
   S.babyColors[babyId]=colorId;
   localStorage.setItem('bt_colors',JSON.stringify(S.babyColors));
-  rerenderBabyCard(babyId);
+  if(S.tab==='settings') renderSettings();
+  else rerenderBabyCard(babyId);
 }
 
 // ── Screens ──────────────────────────────────────────────────
@@ -1098,7 +1099,9 @@ async function boot(){
       try{const r=await acceptInvite(S.pendingInvite);if(r&&r.ok)toast('Joined '+r.family_name+'!');}catch(e){toast(e.message);}
       S.pendingInvite=null; await loadFamilies();
     }
-    if(S.families.length===0) show('setup'); else show('families');
+    if(S.families.length===0) show('setup');
+    else if(S.families.length===1) await openFamily(S.families[0]);
+    else show('families');
   }catch(e){ console.error(e); show('auth'); }
 }
 
