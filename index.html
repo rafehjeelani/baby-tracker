@@ -737,7 +737,7 @@ function renderInsightsSection(){
       <div style="font-size:13px;color:var(--muted)">No feeds logged today</div>
     </div>`;
     const sinceStr=ins.sinceMin!=null?(ins.sinceMin>=60?`${Math.floor(ins.sinceMin/60)}h ${ins.sinceMin%60}m ago`:`${ins.sinceMin}m ago`):'—';
-    const bmFmStr=(ins.bmMl||ins.fmMl)?`<div class="ins-metric" style="grid-column:span 3"><div style="display:flex;align-items:center;justify-content:center;gap:12px;font-size:13px;font-weight:700"><span style="color:#9d174d">${ins.bmMl}<span style="font-size:11px;font-weight:500">ml</span> <span style="font-size:11px;background:#fce7f3;padding:2px 7px;border-radius:20px">BM</span></span><span style="color:var(--muted)">·</span><span style="color:#1d4ed8">${ins.fmMl}<span style="font-size:11px;font-weight:500">ml</span> <span style="font-size:11px;background:#dbeafe;padding:2px 7px;border-radius:20px">FM</span></span></div></div>`:'';
+    const bmFmStr=(ins.bmMl||ins.fmMl)?`<div class="ins-metric"><div class="ins-val" style="color:#9d174d">${ins.bmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl" style="background:#fce7f3;border-radius:20px;padding:1px 6px;display:inline-block;margin-top:3px">BM</div></div><div class="ins-metric"><div class="ins-val" style="color:#1d4ed8">${ins.fmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl" style="background:#dbeafe;border-radius:20px;padding:1px 6px;display:inline-block;margin-top:3px">FM</div></div>`:'';
     return `<div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:20px">${b.emoji}</span>
