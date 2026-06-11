@@ -675,20 +675,16 @@ function bindSetupEvents(emojiOpts){
 // ── Tracker shell ────────────────────────────────────────────
 function renderTracker(a){
   const fc=BABY_COLORS.find(c=>c.id===S.familyColor)||BABY_COLORS[1];
-  a.innerHTML=`<div class="sticky-header" id="app-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d};flex-direction:column;align-items:stretch;padding:10px 16px 0">
-    <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px">
-      <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85)">‹</button>
-      <div style="flex:1">
-        <div class="hd-title" style="color:#fff;font-family:'Fredoka',sans-serif;font-size:18px">${esc(S.family.name)}</div>
-      </div>
-      <button style="font-size:20px;padding:6px;border-radius:8px;color:rgba(255,255,255,.85)" onclick="refreshAll()" title="Refresh">↻</button>
+  a.innerHTML=`<div class="sticky-header" id="app-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d};padding:10px 14px">
+    <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85);font-size:20px;padding:2px 6px;flex-shrink:0">‹</button>
+    <div style="font-family:'Fredoka',sans-serif;font-size:16px;font-weight:600;color:#fff;flex-shrink:0;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(S.family.name)}</div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px">
+      <button onclick="changeDate(-1)" style="background:rgba(255,255,255,.18);border:none;color:#fff;font-size:15px;padding:3px 9px;border-radius:8px;cursor:pointer;line-height:1">‹</button>
+      <div style="font-family:'Fredoka',sans-serif;font-size:14px;font-weight:500;color:#fff;white-space:nowrap" id="date-nav-label">${fmtDate(S.curDate)}</div>
+      <button onclick="changeDate(1)" style="background:rgba(255,255,255,.18);border:none;color:#fff;font-size:15px;padding:3px 9px;border-radius:8px;cursor:pointer;line-height:1">›</button>
+      <span id="today-btn-slot">${S.curDate!==today()?`<button onclick="goToday()" style="background:rgba(255,255,255,.25);border:none;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Today</button>`:''}</span>
     </div>
-    <div id="date-nav-bar" style="display:flex;align-items:center;gap:8px;border-top:1px solid rgba(255,255,255,.2);padding:8px 0">
-      <button onclick="changeDate(-1)" style="color:rgba(255,255,255,.85);font-size:18px;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.15)">‹</button>
-      <div style="flex:1;text-align:center;font-family:'Fredoka',sans-serif;font-size:16px;font-weight:600;color:#fff" id="date-nav-label">${fmtDate(S.curDate)}</div>
-      <button onclick="changeDate(1)" style="color:rgba(255,255,255,.85);font-size:18px;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.15)">›</button>
-      ${S.curDate!==today()?`<button onclick="goToday()" style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.25);color:#fff">Today</button>`:''}
-    </div>
+    <button style="font-size:18px;padding:2px 6px;border-radius:8px;color:rgba(255,255,255,.85);flex-shrink:0" onclick="refreshAll()" title="Refresh">↻</button>
   </div>
   <div id="main"></div>
   <div id="nav">
@@ -794,19 +790,8 @@ function renderDaily(){
 function updateHeaderDate(){
   const lbl=document.getElementById('date-nav-label');
   if(lbl) lbl.textContent=fmtDate(S.curDate);
-  const bar=document.getElementById('date-nav-bar');
-  if(bar){
-    const existing=bar.querySelector('.today-btn');
-    if(existing) existing.remove();
-    if(S.curDate!==today()){
-      const btn=document.createElement('button');
-      btn.className='today-btn';
-      btn.setAttribute('style','font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.25);color:#fff;border:none;cursor:pointer');
-      btn.textContent='Today';
-      btn.onclick=goToday;
-      bar.appendChild(btn);
-    }
-  }
+  const slot=document.getElementById('today-btn-slot');
+  if(slot) slot.innerHTML=S.curDate!==today()?`<button onclick="goToday()" style="background:rgba(255,255,255,.25);border:none;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Today</button>`:'';
 }
 async function changeDate(d){
   const dt=new Date(S.curDate+'T00:00:00'); dt.setDate(dt.getDate()+d);
