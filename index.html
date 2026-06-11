@@ -30,7 +30,8 @@ a{cursor:pointer;color:var(--primary);text-decoration:none}
 .btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--text)}
 .btn-ghost:hover{background:var(--bg)}
 .btn-sm{padding:7px 14px;font-size:13px;border-radius:9px}
-.input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:11px;background:#fff;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;line-height:1.4}
+.input{width:100%;padding:0 13px;height:40px;border:1.5px solid var(--border);border-radius:11px;background:#fff;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;line-height:40px;box-sizing:border-box}
+textarea.input{height:auto;padding:10px 13px;line-height:1.5}
 .input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .input::placeholder{color:#aabdce}
 label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;letter-spacing:.01em}
@@ -754,7 +755,7 @@ function renderInsightsSection(){
       <div style="font-size:13px;color:var(--muted)">No feeds logged today</div>
     </div>`;
     const sinceStr=ins.sinceMin!=null?(ins.sinceMin>=60?`${Math.floor(ins.sinceMin/60)}h ${ins.sinceMin%60}m ago`:`${ins.sinceMin}m ago`):'—';
-    const bmFmStr=(ins.bmMl||ins.fmMl)?`<div class="ins-metric"><div class="ins-val" style="color:#9d174d">${ins.bmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl" style="background:#fce7f3;border-radius:20px;padding:1px 6px;display:inline-block;margin-top:3px">BM</div></div><div class="ins-metric"><div class="ins-val" style="color:#1d4ed8">${ins.fmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl" style="background:#dbeafe;border-radius:20px;padding:1px 6px;display:inline-block;margin-top:3px">FM</div></div>`:'';
+    const bmFmStr=(ins.bmMl||ins.fmMl)?`<div class="ins-metric" style="grid-column:span 2;display:flex;align-items:center;justify-content:space-evenly;gap:8px"><div style="text-align:center"><div class="ins-val" style="color:#9d174d">${ins.bmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl" style="background:#fce7f3;border-radius:20px;padding:1px 8px;display:inline-block;margin-top:3px">BM</div></div><div style="color:var(--muted);font-size:16px;font-weight:300">·</div><div style="text-align:center"><div class="ins-val" style="color:#1d4ed8">${ins.fmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl" style="background:#dbeafe;border-radius:20px;padding:1px 8px;display:inline-block;margin-top:3px">FM</div></div></div>`:'';
     return `<div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:20px">${b.emoji}</span>
