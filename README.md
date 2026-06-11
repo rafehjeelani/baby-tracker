@@ -39,18 +39,22 @@ A family baby tracking web app built with vanilla JS and Supabase. Track feeds, 
 
 ### Daily Tab
 - Date navigation bar (sticky, always visible while scrolling) with ‹ Today › controls — timezone-safe date arithmetic
-- **Glance bar** — scrollable summary chips showing total ml, urine count, potty count, vitamin count, and per-baby ml for the selected day
 - **Baby cards** — one card per baby, coloured by their assigned theme
-  - Latest feed time shown in the card header (e.g. 🍼 2:30 PM)
+  - Latest feed time shown in the card header (e.g. 🍼 2:30 PM); carries forward from the previous day if no feed yet today (shown as ↩ HH:MM)
   - Summary chips in header: total ml · urine · potty · vitamins
   - Add-entry area pinned at the top of the card (above the log)
   - Entry type pills: 🍼 Milk · 💧 Urine · 💩 Potty · 💊 Vitamin · 🩹 Medicine
   - Custom 12h time picker (hour / minute / AM–PM selects — works correctly on all mobile locales)
-  - For milk: **BM** (breast milk) and **FM** (formula milk) multi-select tags — both can be selected for a mixed feed; stored in the `note` field as `"BM"`, `"FM"`, or `"BM+FM"`; displayed as coloured chips in the log
+  - For milk: **BM** (breast milk) and **FM** (formula milk) multi-select tags — both can be selected for a mixed feed; stored in the `note` field as `"BM"`, `"FM"`, or `"BM+FM"`; displayed as coloured chips in the log; ml value is preserved when toggling tags
   - Log entries sorted reverse-chronologically (latest first)
   - Inline edit on any log entry — tap ✏️ to edit time, ml, BM/FM tags, or medicine name; saves to Supabase
   - Delete any log entry
-- **Pump Log section** — below the baby cards; log pump sessions with time, ml, and optional note; shows total ml pumped today
+- **Pump Log section** — above the Insights section; log pump sessions with time, ml, and optional note; shows total ml pumped today
+- **Today's Insights** — per-baby section below pump log:
+  - Feed sessions, average ml per session, total ml
+  - Time since last feed
+  - Longest and shortest gap between feeds
+  - BM · FM volume split (e.g. `240ml BM · 120ml FM`) shown on a dedicated row
 - **Daily Notes** — free-text note per day, auto-saved with debounce
 
 ### Growth Tab
@@ -58,6 +62,7 @@ A family baby tracking web app built with vanilla JS and Supabase. Track feeds, 
 - Per-baby measurement cards showing:
   - Latest reading badges (weight kg, length cm, head cm)
   - **Trend charts** — SVG line charts for weight and length over time, coloured in the baby's theme, with axis labels and data point tooltips
+  - **X-axis shows age** calculated from the baby's DOB — weeks (e.g. `6w`) for babies under 3 months, months (e.g. `4m`) for older
   - History table (most recent 10 records for the active filter)
   - Add measurement form (date, type, value)
 - **Vaccine section** with baby filter pills (All · per baby)
@@ -87,7 +92,9 @@ A family baby tracking web app built with vanilla JS and Supabase. Track feeds, 
 - **Sign Out / Switch Family**
 
 ### Colour System
-8 themes: Pink · Blue · Mint · Peach · Purple · Sky · Rose · Sage. Each has three shades (light, mid, dark) used for card backgrounds, chips, charts, and text. Baby colours sync to `babies.color` in Supabase. Family header colour syncs to `families.color`.
+Inspired by the bibble baby brand palette. Page background is warm cream (`#f8f4ee`). Primary colour is navy (`#1e3560`). Accent colours: sky blue, coral, yellow, pink.
+
+8 baby card themes: Pink · Blue · Mint · Peach · Purple · Sky · Rose · Sage. Each has three shades (light, mid, dark) used for card backgrounds, chips, charts, and text. Baby colours sync to `babies.color` in Supabase. Family header colour syncs to `families.color`.
 
 ---
 
@@ -146,7 +153,7 @@ cd baby-tracker
 npx serve .
 ```
 
-The Supabase project URL and anon key are hardcoded in `index.html` around line 138–139. For a fork, replace them with your own project credentials.
+The Supabase project URL and anon key are hardcoded in `index.html` around line 198–199. For a fork, replace them with your own project credentials.
 
 ---
 
@@ -159,7 +166,7 @@ Pushes to `main` automatically deploy via GitHub Pages (configured under repo Se
 ## Project Structure
 
 ```
-index.html          ← entire app (HTML + CSS + JS, ~1400 lines)
+index.html          ← entire app (HTML + CSS + JS, ~1600 lines)
 setup.sql           ← full Supabase schema, RLS, triggers
 create_family_rpc.sql
 pump_sessions.sql
