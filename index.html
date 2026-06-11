@@ -716,13 +716,13 @@ function computeInsights(milkEnts){
   const gaps=[];
   for(let i=1;i<sessionTimes.length;i++) gaps.push(sessionTimes[i].start-sessionTimes[i-1].end);
   const fmtGap=m=>m>=60?`${Math.floor(m/60)}h ${m%60}m`:`${m}m`;
-  const bmSessions=sessionTimes.filter(s=>s.tags.includes('BM')).length;
-  const fmSessions=sessionTimes.filter(s=>s.tags.includes('FM')).length;
+  const bmMl=milkEnts.filter(e=>(e.note||'').includes('BM')).reduce((s,e)=>s+(e.ml||0),0);
+  const fmMl=milkEnts.filter(e=>(e.note||'').includes('FM')).reduce((s,e)=>s+(e.ml||0),0);
   const now=new Date();
   const nowMin=now.getHours()*60+now.getMinutes();
   const lastMin=toMin(milkEnts.sort((a,b)=>b.time.localeCompare(a.time))[0].time);
   const sinceMin=nowMin>=lastMin?nowMin-lastMin:null;
-  return{sessions:sessions.length,totalMl,avgMl,longestGap:gaps.length?fmtGap(Math.max(...gaps)):null,shortestGap:gaps.length?fmtGap(Math.min(...gaps)):null,bmSessions,fmSessions,sinceMin,gaps};
+  return{sessions:sessions.length,totalMl,avgMl,longestGap:gaps.length?fmtGap(Math.max(...gaps)):null,shortestGap:gaps.length?fmtGap(Math.min(...gaps)):null,bmMl,fmMl,sinceMin,gaps};
 }
 function renderInsightsSection(){
   const cards=S.babies.map((b,idx)=>{
@@ -736,7 +736,7 @@ function renderInsightsSection(){
       <div style="font-size:13px;color:var(--muted)">No feeds logged today</div>
     </div>`;
     const sinceStr=ins.sinceMin!=null?(ins.sinceMin>=60?`${Math.floor(ins.sinceMin/60)}h ${ins.sinceMin%60}m ago`:`${ins.sinceMin}m ago`):'—';
-    const bmFmStr=(ins.bmSessions||ins.fmSessions)?`<div class="ins-metric"><div class="ins-val">${ins.bmSessions}·${ins.fmSessions}</div><div class="ins-lbl">BM · FM</div></div>`:'';
+    const bmFmStr=(ins.bmMl||ins.fmMl)?`<div class="ins-metric"><div class="ins-val">${ins.bmMl}·${ins.fmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl">BM · FM</div></div>`:'';
     return `<div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:20px">${b.emoji}</span>
@@ -900,9 +900,11 @@ function renderAddArea(b,selType){
   </div>`;
 }
 function toggleMilkTag(babyId,tag){
+  const mlVal=document.getElementById('ml-'+babyId)?.value||'';
   const cur=S.milkType[babyId]||[];
   S.milkType[babyId]=cur.includes(tag)?cur.filter(t=>t!==tag):[...cur,tag];
   rerenderBabyCard(babyId);
+  if(mlVal){ const el=document.getElementById('ml-'+babyId); if(el) el.value=mlVal; }
 }
 
 function milkTagChips(note){
