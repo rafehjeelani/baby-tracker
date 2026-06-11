@@ -65,10 +65,26 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .hd-back{font-size:22px;color:var(--muted);padding:4px 6px;margin-left:-6px;border-radius:8px}
 .hd-back:hover{background:var(--bg)}
 
+/* ── Hero header ── */
+.hero-header{position:sticky;top:0;z-index:100;padding:14px 16px 0}
+.hero-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hero-family-name{font-family:'Comfortaa',sans-serif;font-weight:700;font-size:20px;color:#fff;text-align:center;flex:1}
+.hero-btn{background:none;border:none;font-size:22px;color:rgba(255,255,255,.85);padding:4px 6px;border-radius:8px;cursor:pointer;line-height:1}
+.hero-baby-grid{display:grid;gap:8px;margin-bottom:0}
+.hero-baby-card{border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.hero-baby-emoji{font-size:22px;line-height:1;flex-shrink:0}
+.hero-baby-name{font-family:'Comfortaa',sans-serif;font-weight:700;font-size:14px;line-height:1.2}
+.hero-baby-meta{font-size:12px;margin-top:2px;opacity:.8}
+
 /* ── Date nav ── */
-.date-nav{display:flex;align-items:center;gap:8px;margin:0 -16px;padding:10px 16px;background:#fff;position:sticky;top:57px;z-index:50;border-bottom:1px solid var(--border);box-shadow:0 2px 6px rgba(15,45,80,.04)}
-.date-nav .date-label{flex:1;text-align:center;font-weight:700;font-size:16px}
-.date-nav .btn-ghost{min-width:38px;padding:8px 10px;font-size:16px}
+.date-nav{display:flex;align-items:center;gap:8px;margin:0 -16px;padding:10px 16px;background:rgba(0,0,0,.25);border-top:1px solid rgba(255,255,255,.12)}
+.date-nav.plain{background:#fff;border-top:none;border-bottom:1px solid var(--border);box-shadow:0 2px 6px rgba(15,45,80,.04);position:sticky;top:57px;z-index:50}
+.date-nav .date-label{flex:1;text-align:center;font-weight:700;font-size:15px;color:#fff}
+.date-nav.plain .date-label{color:var(--text)}
+.date-nav .btn-ghost{min-width:38px;padding:8px 10px;font-size:16px;color:rgba(255,255,255,.9)}
+.date-nav.plain .btn-ghost{color:var(--text)}
+.date-nav .btn-today{background:rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:5px 12px;font-size:13px;font-weight:700;border:none;cursor:pointer}
+.date-nav.plain .btn-today{background:var(--primary-l);color:var(--primary)}
 
 /* ── Main scroll area ── */
 #main{padding:16px;padding-bottom:calc(var(--nav) + var(--safe) + 8px)}
@@ -492,12 +508,7 @@ async function setFamilyColor(colorId){
   S.familyColor=colorId;
   localStorage.setItem('bt_fam_color',colorId);
   if(S.family) sb.from('families').update({color:colorId}).eq('id',S.family.id);
-  const fc=BABY_COLORS.find(c=>c.id===colorId)||BABY_COLORS[1];
-  const hdr=document.querySelector('.sticky-header');
-  if(hdr){ hdr.style.background=`linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%)`; hdr.style.borderBottomColor=fc.d; }
-  document.querySelectorAll('.sticky-header .hd-title,.sticky-header .hd-sub').forEach(el=>el.style.color='#fff');
-  document.querySelector('.sticky-header .hd-back')&&(document.querySelector('.sticky-header .hd-back').style.color='rgba(255,255,255,.85)');
-  document.querySelector('.sticky-header button:last-child')&&(document.querySelector('.sticky-header button:last-child').style.color='rgba(255,255,255,.85)');
+  renderHeader();
   if(S.tab==='settings') renderSettings();
 }
 async function setBabyColor(babyId, colorId){
@@ -688,16 +699,7 @@ function bindSetupEvents(emojiOpts){
 
 // ── Tracker shell ────────────────────────────────────────────
 function renderTracker(a){
-  const fc=BABY_COLORS.find(c=>c.id===S.familyColor)||BABY_COLORS[1];
-  a.innerHTML=`<div class="sticky-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d}">
-    <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85)">‹</button>
-    <div style="flex:1">
-      <div class="hd-title" style="color:#fff">${esc(S.family.name)}</div>
-      <div class="hd-sub" style="color:rgba(255,255,255,.8)">${S.babies.length} bab${S.babies.length!==1?'ies':'y'} · ${S.members.length} member${S.members.length!==1?'s':''}</div>
-    </div>
-    <button style="font-size:20px;padding:6px;border-radius:8px;color:rgba(255,255,255,.85)" onclick="refreshAll()" title="Refresh">↻</button>
-  </div>
-  <div id="main"></div>
+  a.innerHTML=`<div id="hdr"></div><div id="main"></div>
   <div id="nav">
     ${['daily','growth','summary','settings'].map((t,i)=>{
       const icons=['📅','📏','📊','⚙️'];
@@ -706,6 +708,63 @@ function renderTracker(a){
     }).join('')}
   </div>`;
   renderTab();
+}
+function renderHeader(){
+  const hdr=document.getElementById('hdr');
+  if(!hdr) return;
+  if(S.tab==='daily'){ hdr.innerHTML=renderHeroHeader(); return; }
+  const fc=BABY_COLORS.find(c=>c.id===S.familyColor)||BABY_COLORS[1];
+  hdr.innerHTML=`<div class="sticky-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d}">
+    <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85)">‹</button>
+    <div style="flex:1">
+      <div class="hd-title" style="color:#fff">${esc(S.family.name)}</div>
+      <div class="hd-sub" style="color:rgba(255,255,255,.8)">${S.babies.length} bab${S.babies.length!==1?'ies':'y'} · ${S.members.length} member${S.members.length!==1?'s':''}</div>
+    </div>
+    <button style="font-size:20px;padding:6px;border-radius:8px;color:rgba(255,255,255,.85)" onclick="refreshAll()" title="Refresh">↻</button>
+  </div>`;
+}
+function renderHeroHeader(){
+  const fc=BABY_COLORS.find(c=>c.id===S.familyColor)||BABY_COLORS[1];
+  const cols=S.babies.length===1?'1fr':'1fr 1fr';
+  const babyCards=S.babies.map((b,idx)=>{
+    const c=getBabyColor(b.id,idx);
+    const ents=(S.entries[S.curDate]||{})[b.id]||[];
+    const milkToday=[...ents].filter(e=>e.type==='milk').sort((a,b)=>b.time.localeCompare(a.time));
+    const yestDate=(()=>{const d=new Date(S.curDate+'T00:00:00');d.setDate(d.getDate()-1);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());})();
+    const yestMilk=([...((S.entries[yestDate]||{})[b.id]||[])].filter(e=>e.type==='milk').sort((a,bn)=>bn.time.localeCompare(a.time)));
+    const lastFeedToday=milkToday[0]?.time;
+    const lastFeed=lastFeedToday||yestMilk[0]?.time;
+    const lastFeedLabel=lastFeed?(lastFeedToday?'🍼 '+fmt12(lastFeed):'↩ '+fmt12(lastFeed)):null;
+    const ins=computeInsights(milkToday);
+    const sinceMin=ins?.sinceMin;
+    const sinceStr=sinceMin!=null?(sinceMin>=60?`${Math.floor(sinceMin/60)}h ${sinceMin%60}m ago`:`${sinceMin}m ago`):null;
+    return `<div class="hero-baby-card" style="background:${c.l};border:1.5px solid ${c.m}20">
+      <div class="hero-baby-emoji">${b.emoji}</div>
+      <div style="min-width:0">
+        <div class="hero-baby-name" style="color:${c.d}">${esc(b.name)}</div>
+        <div class="hero-baby-meta" style="color:${c.d}">
+          ${lastFeedLabel?`<span>${lastFeedLabel}</span>`:'<span style="opacity:.5">No feeds yet</span>'}
+          ${sinceStr?`<span style="margin-left:6px">⏱ ${sinceStr}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const dateLabel=fmtDate(S.curDate);
+  const todayBtn=S.curDate!==today()?`<button class="btn-today" onclick="goToday()">Today</button>`:'';
+  return `<div class="hero-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%)">
+    <div class="hero-header-top">
+      <button class="hero-btn" onclick="show('families')">‹</button>
+      <div class="hero-family-name">${esc(S.family.name)}</div>
+      <button class="hero-btn" onclick="refreshAll()" title="Refresh">↻</button>
+    </div>
+    <div class="hero-baby-grid" style="grid-template-columns:${cols}">${babyCards}</div>
+    <div class="date-nav">
+      <button class="btn btn-ghost btn-sm" onclick="changeDate(-1)" style="min-width:36px">‹</button>
+      <div class="date-label">${dateLabel}</div>
+      <button class="btn btn-ghost btn-sm" onclick="changeDate(1)" style="min-width:36px">›</button>
+      ${todayBtn}
+    </div>
+  </div>`;
 }
 async function refreshAll(){
   try{
@@ -718,6 +777,7 @@ function setTab(t){ S.tab=t; renderTab(); }
 function renderTab(){
   const m=document.getElementById('main');
   if(!m) return;
+  renderHeader();
   if(S.tab==='daily')    renderDaily();
   else if(S.tab==='growth')   renderGrowth();
   else if(S.tab==='summary')  renderSummary();
@@ -788,7 +848,7 @@ function renderInsightsSection(){
 // ── Daily tab ────────────────────────────────────────────────
 function renderDaily(){
   const m=document.getElementById('main');
-  m.innerHTML=renderDateNav()+`<div style="height:12px"></div>`+
+  m.innerHTML=`<div style="height:12px"></div>`+
     `<div class="baby-grid">${S.babies.map((b,i)=>renderBabyCard(b,i)).join('')}</div>`+
     renderPumpSection()+renderInsightsSection()+renderDailyNotes();
   loadNote(S.curDate).then(()=>{
@@ -997,12 +1057,12 @@ async function handleSaveEdit(entryId,babyId){
   try{
     await updateEntry(entryId,{time,ml:ml||null,note:note||null});
     delete S.editEntry[entryId];
-    rerenderBabyCard(babyId);
+    rerenderBabyCard(babyId); renderHeader();
     document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
     toast('Entry updated',4000,async()=>{
       try{
         await updateEntry(entryId,prev);
-        rerenderBabyCard(babyId);
+        rerenderBabyCard(babyId); renderHeader();
         document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
       }catch(err){toast(err.message);}
     });
@@ -1024,7 +1084,7 @@ async function handleAddEntry(babyId){
   const note=type==='milk'?(mt.length?mt.join('+'):null):(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
   try{
     await addEntry(babyId,type,time,ml,note);
-    rerenderBabyCard(babyId);
+    rerenderBabyCard(babyId); renderHeader();
     document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
   }catch(e){toast(e.message);}
 }
@@ -1033,12 +1093,12 @@ async function handleDelEntry(id,babyId){
   const snap={type:e.type,time:e.time,ml:e.ml,note:e.note};
   try{
     await deleteEntry(id,babyId);
-    rerenderBabyCard(babyId);
+    rerenderBabyCard(babyId); renderHeader();
     document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
     toast('Entry deleted',4000,async()=>{
       try{
         await addEntry(babyId,snap.type,snap.time,snap.ml,snap.note);
-        rerenderBabyCard(babyId);
+        rerenderBabyCard(babyId); renderHeader();
         document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
       }catch(err){toast(err.message);}
     });
@@ -1435,7 +1495,7 @@ async function handleRenameFamiliy(){
   const {error}=await sb.from('families').update({name}).eq('id',S.family.id);
   if(error){toast(error.message);return;}
   S.family.name=name;
-  document.querySelector('.sticky-header .hd-title').textContent=name;
+  renderHeader();
   toast('Family name updated');
 }
 async function handleSignOut(){
