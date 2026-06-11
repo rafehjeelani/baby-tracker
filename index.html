@@ -751,7 +751,7 @@ function renderHeroHeader(){
   }).join('');
   const dateLabel=fmtDate(S.curDate);
   const todayBtn=S.curDate!==today()?`<button class="btn-today" onclick="goToday()">Today</button>`:'';
-  return `<div class="hero-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%)">
+  return `<div class="hero-header" style="background:${fc.d}">
     <div class="hero-header-top">
       <button class="hero-btn" onclick="show('families')">‹</button>
       <div class="hero-family-name">${esc(S.family.name)}</div>
