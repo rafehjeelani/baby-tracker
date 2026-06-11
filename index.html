@@ -769,7 +769,6 @@ function renderInsightsSection(){
         <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.sessions}</div><div class="ins-lbl">sessions</div></div>
         <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.avgMl}<span style="font-size:12px">ml</span></div><div class="ins-lbl">avg/feed</div></div>
         ${ins.longestGap?`<div class="ins-metric"><div class="ins-val">⬆ ${ins.longestGap}</div><div class="ins-lbl">longest gap</div></div>`:''}
-        ${ins.shortestGap&&ins.gaps.length>1?`<div class="ins-metric"><div class="ins-val">⬇ ${ins.shortestGap}</div><div class="ins-lbl">shortest gap</div></div>`:''}
         ${bmFmStr}
       </div>
     </div>`;
