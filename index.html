@@ -63,6 +63,11 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .hd-back{font-size:22px;color:var(--muted);padding:4px 6px;margin-left:-6px;border-radius:8px}
 .hd-back:hover{background:var(--bg)}
 
+/* ── Date nav ── */
+.date-nav{display:flex;align-items:center;gap:8px;margin:0 -16px;padding:10px 16px;background:#fff;position:sticky;top:57px;z-index:50;border-bottom:1px solid var(--border);box-shadow:0 2px 6px rgba(15,45,80,.04)}
+.date-nav .date-label{flex:1;text-align:center;font-weight:700;font-size:16px}
+.date-nav .btn-ghost{min-width:38px;padding:8px 10px;font-size:16px}
+
 /* ── Main scroll area ── */
 #main{padding:16px;padding-bottom:calc(var(--nav) + var(--safe) + 8px)}
 
@@ -675,16 +680,13 @@ function bindSetupEvents(emojiOpts){
 // ── Tracker shell ────────────────────────────────────────────
 function renderTracker(a){
   const fc=BABY_COLORS.find(c=>c.id===S.familyColor)||BABY_COLORS[1];
-  a.innerHTML=`<div class="sticky-header" id="app-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d};padding:10px 14px">
-    <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85);font-size:20px;padding:2px 6px;flex-shrink:0">‹</button>
-    <div style="font-family:'Fredoka',sans-serif;font-size:16px;font-weight:600;color:#fff;flex-shrink:0;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(S.family.name)}</div>
-    <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px">
-      <button onclick="changeDate(-1)" style="background:rgba(255,255,255,.18);border:none;color:#fff;font-size:15px;padding:3px 9px;border-radius:8px;cursor:pointer;line-height:1">‹</button>
-      <div style="font-family:'Fredoka',sans-serif;font-size:14px;font-weight:500;color:#fff;white-space:nowrap" id="date-nav-label">${fmtDate(S.curDate)}</div>
-      <button onclick="changeDate(1)" style="background:rgba(255,255,255,.18);border:none;color:#fff;font-size:15px;padding:3px 9px;border-radius:8px;cursor:pointer;line-height:1">›</button>
-      <span id="today-btn-slot">${S.curDate!==today()?`<button onclick="goToday()" style="background:rgba(255,255,255,.25);border:none;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Today</button>`:''}</span>
+  a.innerHTML=`<div class="sticky-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d}">
+    <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85)">‹</button>
+    <div style="flex:1">
+      <div class="hd-title" style="color:#fff">${esc(S.family.name)}</div>
+      <div class="hd-sub" style="color:rgba(255,255,255,.8)">${S.babies.length} bab${S.babies.length!==1?'ies':'y'} · ${S.members.length} member${S.members.length!==1?'s':''}</div>
     </div>
-    <button style="font-size:18px;padding:2px 6px;border-radius:8px;color:rgba(255,255,255,.85);flex-shrink:0" onclick="refreshAll()" title="Refresh">↻</button>
+    <button style="font-size:20px;padding:6px;border-radius:8px;color:rgba(255,255,255,.85)" onclick="refreshAll()" title="Refresh">↻</button>
   </div>
   <div id="main"></div>
   <div id="nav">
@@ -778,7 +780,7 @@ function renderInsightsSection(){
 // ── Daily tab ────────────────────────────────────────────────
 function renderDaily(){
   const m=document.getElementById('main');
-  m.innerHTML=`<div style="height:12px"></div>`+
+  m.innerHTML=renderDateNav()+`<div style="height:12px"></div>`+
     `<div class="baby-grid">${S.babies.map((b,i)=>renderBabyCard(b,i)).join('')}</div>`+
     renderPumpSection()+renderInsightsSection()+renderDailyNotes();
   loadNote(S.curDate).then(()=>{
@@ -787,16 +789,17 @@ function renderDaily(){
   });
   bindDailyNoteEvents();
 }
-function updateHeaderDate(){
-  const lbl=document.getElementById('date-nav-label');
-  if(lbl) lbl.textContent=fmtDate(S.curDate);
-  const slot=document.getElementById('today-btn-slot');
-  if(slot) slot.innerHTML=S.curDate!==today()?`<button onclick="goToday()" style="background:rgba(255,255,255,.25);border:none;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Today</button>`:'';
+function renderDateNav(){
+  return `<div class="date-nav">
+    <button class="btn btn-ghost btn-sm" onclick="changeDate(-1)" style="min-width:36px">‹</button>
+    <div class="date-label">${fmtDate(S.curDate)}</div>
+    <button class="btn btn-ghost btn-sm" onclick="changeDate(1)" style="min-width:36px">›</button>
+    ${S.curDate!==today()?`<button class="btn btn-sm" style="background:var(--primary-l);color:var(--primary);font-weight:700" onclick="goToday()">Today</button>`:''}
+  </div>`;
 }
 async function changeDate(d){
   const dt=new Date(S.curDate+'T00:00:00'); dt.setDate(dt.getDate()+d);
   S.curDate=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
-  updateHeaderDate();
   await Promise.all([
     S.entries[S.curDate]?null:loadEntries(S.curDate),
     S.pump[S.curDate]?null:loadPump(S.curDate)
@@ -805,7 +808,6 @@ async function changeDate(d){
 }
 async function goToday(){
   S.curDate=today();
-  updateHeaderDate();
   await Promise.all([
     S.entries[S.curDate]?null:loadEntries(S.curDate),
     S.pump[S.curDate]?null:loadPump(S.curDate)
