@@ -8,9 +8,10 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#eef5fd;--card:#ffffff;--border:#c8dff5;--text:#0d2b45;--muted:#5a7fa0;
-  --primary:#2563eb;--primary-l:#dbeafe;--primary-m:#93c5fd;--primary-d:#1d4ed8;
-  --radius:16px;--nav:62px;--safe:env(safe-area-inset-bottom,0px)
+  --bg:#f8f4ee;--card:#ffffff;--border:#dde5f0;--text:#1e3560;--muted:#6b7fa0;
+  --primary:#1e3560;--primary-l:#e8f2fc;--primary-m:#9ec8f0;--primary-d:#152848;
+  --coral:#e5673d;--yellow:#f2c43d;--pink:#e9a0b8;--sky:#9ec8f0;
+  --radius:18px;--nav:62px;--safe:env(safe-area-inset-bottom,0px)
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
 input,select,textarea,button{font-family:inherit;font-size:16px}
@@ -736,7 +737,7 @@ function renderInsightsSection(){
       <div style="font-size:13px;color:var(--muted)">No feeds logged today</div>
     </div>`;
     const sinceStr=ins.sinceMin!=null?(ins.sinceMin>=60?`${Math.floor(ins.sinceMin/60)}h ${ins.sinceMin%60}m ago`:`${ins.sinceMin}m ago`):'—';
-    const bmFmStr=(ins.bmMl||ins.fmMl)?`<div class="ins-metric"><div class="ins-val">${ins.bmMl}·${ins.fmMl}<span style="font-size:11px">ml</span></div><div class="ins-lbl">BM · FM</div></div>`:'';
+    const bmFmStr=(ins.bmMl||ins.fmMl)?`<div class="ins-metric" style="grid-column:span 3"><div style="display:flex;align-items:center;justify-content:center;gap:12px;font-size:13px;font-weight:700"><span style="color:#9d174d">${ins.bmMl}<span style="font-size:11px;font-weight:500">ml</span> <span style="font-size:11px;background:#fce7f3;padding:2px 7px;border-radius:20px">BM</span></span><span style="color:var(--muted)">·</span><span style="color:#1d4ed8">${ins.fmMl}<span style="font-size:11px;font-weight:500">ml</span> <span style="font-size:11px;background:#dbeafe;padding:2px 7px;border-radius:20px">FM</span></span></div></div>`:'';
     return `<div class="card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:20px">${b.emoji}</span>
@@ -1054,7 +1055,17 @@ function bindDailyNoteEvents(){
 }
 
 // ── Mini line chart ──────────────────────────────────────────
-function renderMiniChart(pts, color, unit){
+function ageLabel(dob, dateStr){
+  if(!dob) return dateStr.slice(5);
+  const birth=new Date(dob+'T00:00:00'), meas=new Date(dateStr+'T00:00:00');
+  const days=Math.round((meas-birth)/(1000*60*60*24));
+  if(days<0) return dateStr.slice(5);
+  const weeks=Math.floor(days/7);
+  const months=Math.floor(days/30.44);
+  if(months<3) return weeks+'w';
+  return months+'m';
+}
+function renderMiniChart(pts, color, unit, dob){
   if(pts.length<2) return '';
   const W=300,H=110,PL=38,PR=12,PT=10,PB=28;
   const iW=W-PL-PR, iH=H-PT-PB;
@@ -1064,15 +1075,13 @@ function renderMiniChart(pts, color, unit){
   const cx=i=>PL+i/(pts.length-1)*iW;
   const cy=v=>PT+iH-(v-minV)/rng*iH;
   const polyline=pts.map((p,i)=>`${cx(i).toFixed(1)},${cy(p.v).toFixed(1)}`).join(' ');
-  // y-axis labels: 3 ticks
   const ticks=[minV, minV+rng/2, maxV].map(v=>{
     const y=cy(v);
     return `<text x="${PL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="#94a3b8">${v%1===0?v:v.toFixed(1)}</text>
     <line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
   }).join('');
-  // x-axis: show first, middle, last date (short format)
   const xLabels=[0, Math.floor((pts.length-1)/2), pts.length-1].filter((v,i,a)=>a.indexOf(v)===i).map(i=>{
-    const lbl=dates[i].slice(5); // MM-DD
+    const lbl=ageLabel(dob, dates[i]);
     return `<text x="${cx(i).toFixed(1)}" y="${H-6}" text-anchor="middle" font-size="9" fill="#94a3b8">${lbl}</text>`;
   }).join('');
   const dots=pts.map((p,i)=>`<circle cx="${cx(i).toFixed(1)}" cy="${cy(p.v).toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>
@@ -1115,8 +1124,8 @@ function renderMeasCard(b,idx){
     <td style="font-weight:600">${m.value} ${m.mtype==='weight'?'kg':'cm'}</td>
     <td style="text-align:right"><button class="del-btn" onclick="handleDelMeas('${m.id}','${b.id}')">×</button></td>
   </tr>`).join('');
-  const wChart=renderMiniChart(wPts,c.d,'kg');
-  const lChart=renderMiniChart(lPts,c.m,'cm');
+  const wChart=renderMiniChart(wPts,c.d,'kg',b.dob);
+  const lChart=renderMiniChart(lPts,c.m,'cm',b.dob);
   const charts=(wChart||lChart)?`<div style="display:grid;grid-template-columns:${wChart&&lChart?'1fr 1fr':'1fr'};gap:12px;margin-bottom:14px">
     ${wChart?`<div><div style="font-size:11px;font-weight:600;color:${c.d};margin-bottom:4px">⚖️ Weight</div>${wChart}</div>`:''}
     ${lChart?`<div><div style="font-size:11px;font-weight:600;color:${c.d};margin-bottom:4px">📏 Length</div>${lChart}</div>`:''}
