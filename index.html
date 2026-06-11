@@ -47,8 +47,10 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── Toast ── */
-#toast{position:fixed;bottom:calc(var(--nav) + var(--safe) + 14px);left:50%;transform:translateX(-50%) translateY(12px);background:#0d2b45;color:#fff;padding:10px 20px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.22)}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast{position:fixed;bottom:calc(var(--nav) + var(--safe) + 14px);left:50%;transform:translateX(-50%) translateY(12px);background:#0d2b45;color:#fff;padding:10px 20px;border-radius:12px;font-size:14px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.22);display:flex;align-items:center;gap:12px}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+#toast-undo{background:none;border:1.5px solid rgba(255,255,255,.6);color:#fff;padding:3px 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;white-space:nowrap}
+#toast-undo:hover{background:rgba(255,255,255,.15)}
 
 /* ── Bottom nav ── */
 #nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav) + var(--safe));background:#fff;border-top:1px solid var(--border);display:flex;align-items:flex-start;z-index:200;box-shadow:0 -4px 16px rgba(15,45,80,.07)}
@@ -303,9 +305,16 @@ function get12hPickerValue(id){
   return pad(h24)+':'+m;
 }
 let _tt;
-function toast(msg,dur=3000){
+function toast(msg,dur=3000,undoFn){
   const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
+  t.innerHTML='<span id="toast-msg"></span>'+(undoFn?'<button id="toast-undo">Undo</button>':'');
+  document.getElementById('toast-msg').textContent=msg;
+  if(undoFn){
+    document.getElementById('toast-undo').onclick=()=>{
+      clearTimeout(_tt); t.classList.remove('show'); undoFn();
+    };
+  }
+  t.classList.add('show');
   clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),dur);
 }
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
@@ -984,11 +993,19 @@ async function handleSaveEdit(entryId,babyId){
   const isMilk=e.type==='milk', isMed=e.type==='medicine'||e.type==='vitamin';
   const ml=isMilk?parseInt(document.getElementById('edit-ml-'+entryId)?.value||0):e.ml;
   const note=isMed?(document.getElementById('edit-note-'+entryId)?.value||''):e.note;
+  const prev={time:e.time,ml:e.ml,note:e.note};
   try{
     await updateEntry(entryId,{time,ml:ml||null,note:note||null});
     delete S.editEntry[entryId];
     rerenderBabyCard(babyId);
     document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+    toast('Entry updated',4000,async()=>{
+      try{
+        await updateEntry(entryId,prev);
+        rerenderBabyCard(babyId);
+        document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+      }catch(err){toast(err.message);}
+    });
   }catch(err){toast(err.message);}
 }
 function setSel(babyId,type){ S.selType[babyId]=type; rerenderBabyCard(babyId); }
@@ -1012,10 +1029,19 @@ async function handleAddEntry(babyId){
   }catch(e){toast(e.message);}
 }
 async function handleDelEntry(id,babyId){
+  const e=findEntry(id); if(!e) return;
+  const snap={type:e.type,time:e.time,ml:e.ml,note:e.note};
   try{
     await deleteEntry(id,babyId);
     rerenderBabyCard(babyId);
     document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+    toast('Entry deleted',4000,async()=>{
+      try{
+        await addEntry(babyId,snap.type,snap.time,snap.ml,snap.note);
+        rerenderBabyCard(babyId);
+        document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
+      }catch(err){toast(err.message);}
+    });
   }catch(e){toast(e.message);}
 }
 function renderPumpSection(){
@@ -1054,10 +1080,20 @@ async function handleAddPump(){
   }catch(e){toast(e.message);}
 }
 async function handleDelPump(id){
+  const p=(S.pump[S.curDate]||[]).find(p=>p.id===id);
+  const snap=p?{time:p.time,ml:p.ml,note:p.note}:null;
+  const date=S.curDate;
   try{
-    await deletePump(id,S.curDate);
+    await deletePump(id,date);
     const m=document.getElementById('main');
     if(m) m.querySelector('#pump-log')?.closest('.card')?.replaceWith(htmlToEl(renderPumpSection()));
+    toast('Session deleted',4000,snap?async()=>{
+      try{
+        await addPump(date,snap.time,snap.ml,snap.note);
+        const m=document.getElementById('main');
+        if(m) m.querySelector('#pump-log')?.closest('.card')?.replaceWith(htmlToEl(renderPumpSection()));
+      }catch(err){toast(err.message);}
+    }:null);
   }catch(e){toast(e.message);}
 }
 function renderDailyNotes(){
