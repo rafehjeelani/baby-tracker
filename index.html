@@ -766,7 +766,6 @@ function renderInsightsSection(){
       <div class="ins-grid">
         <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.sessions}</div><div class="ins-lbl">sessions</div></div>
         <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.avgMl}<span style="font-size:12px">ml</span></div><div class="ins-lbl">avg/feed</div></div>
-        <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.totalMl}<span style="font-size:12px">ml</span></div><div class="ins-lbl">total</div></div>
         <div class="ins-metric"><div class="ins-val">${sinceStr}</div><div class="ins-lbl">since last</div></div>
         ${ins.longestGap?`<div class="ins-metric"><div class="ins-val">⬆ ${ins.longestGap}</div><div class="ins-lbl">longest gap</div></div>`:''}
         ${ins.shortestGap&&ins.gaps.length>1?`<div class="ins-metric"><div class="ins-val">⬇ ${ins.shortestGap}</div><div class="ins-lbl">shortest gap</div></div>`:''}
@@ -906,8 +905,8 @@ function renderAddArea(b,selType){
   let extra='';
   if(selType==='milk') extra=`
     <div style="display:flex;gap:4px;flex-shrink:0">
-      <button class="pill${mt.includes('BM')?' active':''}" style="padding:6px 10px" onclick="toggleMilkTag('${b.id}','BM')">BM</button>
-      <button class="pill${mt.includes('FM')?' active':''}" style="padding:6px 10px" onclick="toggleMilkTag('${b.id}','FM')">FM</button>
+      <button class="pill${mt.includes('BM')?' active':''}" style="height:40px;padding:0 14px;box-sizing:border-box" onclick="toggleMilkTag('${b.id}','BM')">BM</button>
+      <button class="pill${mt.includes('FM')?' active':''}" style="height:40px;padding:0 14px;box-sizing:border-box" onclick="toggleMilkTag('${b.id}','FM')">FM</button>
     </div>
     <input class="input" id="ml-${b.id}" type="number" placeholder="ml" min="0" style="width:72px;height:40px;box-sizing:border-box"/>`;
   if(selType==='medicine'||selType==='vitamin') extra=`<input class="input" id="note-${b.id}" type="text" placeholder="name / dose" style="flex:1;height:40px;box-sizing:border-box"/>`;
@@ -951,8 +950,8 @@ function renderEditRow(e, babyId){
     ${isMilk?`
       <input class="input" id="edit-ml-${e.id}" type="number" value="${e.ml||''}" placeholder="ml" style="width:68px;height:40px;box-sizing:border-box"/>
       <div style="display:flex;gap:4px">
-        <button class="pill${bmActive?' active':''}" style="padding:5px 10px" onclick="toggleEditTag('${e.id}','BM')">BM</button>
-        <button class="pill${fmActive?' active':''}" style="padding:5px 10px" onclick="toggleEditTag('${e.id}','FM')">FM</button>
+        <button class="pill${bmActive?' active':''}" style="height:40px;padding:0 14px;box-sizing:border-box" onclick="toggleEditTag('${e.id}','BM')">BM</button>
+        <button class="pill${fmActive?' active':''}" style="height:40px;padding:0 14px;box-sizing:border-box" onclick="toggleEditTag('${e.id}','FM')">FM</button>
       </div>`:''}
     ${isMed?`<input class="input" id="edit-note-${e.id}" type="text" value="${esc(e.note||'')}" placeholder="name / dose" style="flex:1;min-width:90px;height:40px;box-sizing:border-box"/>`:''}
     <div style="display:flex;gap:6px;margin-left:auto">
