@@ -71,9 +71,6 @@ label{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-bot
 .section-title:first-child{margin-top:0}
 
 /* ── Date nav ── */
-.date-nav{display:flex;align-items:center;gap:8px;margin:0 -16px;padding:10px 16px 10px;background:#fff;position:sticky;top:57px;z-index:50;border-bottom:1px solid var(--border);box-shadow:0 2px 6px rgba(15,45,80,.04)}
-.date-nav .date-label{flex:1;text-align:center;font-weight:700;font-size:16px}
-.date-nav .btn-ghost{min-width:38px;padding:8px 10px;font-size:16px}
 
 /* ── Daily Summary tiles ── */
 .summary-card{background:#fff;border-radius:var(--radius);border:1px solid var(--border);padding:16px;box-shadow:0 2px 8px rgba(15,45,80,.05);margin-bottom:12px}
@@ -678,13 +675,20 @@ function bindSetupEvents(emojiOpts){
 // ── Tracker shell ────────────────────────────────────────────
 function renderTracker(a){
   const fc=BABY_COLORS.find(c=>c.id===S.familyColor)||BABY_COLORS[1];
-  a.innerHTML=`<div class="sticky-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d}">
-    <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85)">‹</button>
-    <div style="flex:1">
-      <div class="hd-title" style="color:#fff">${esc(S.family.name)}</div>
-      <div class="hd-sub" style="color:rgba(255,255,255,.8)">${S.babies.length} bab${S.babies.length!==1?'ies':'y'} · ${S.members.length} member${S.members.length!==1?'s':''}</div>
+  a.innerHTML=`<div class="sticky-header" id="app-header" style="background:linear-gradient(135deg,${fc.d} 0%,${fc.m} 100%);border-bottom-color:${fc.d};flex-direction:column;align-items:stretch;padding:10px 16px 0">
+    <div style="display:flex;align-items:center;gap:10px;padding-bottom:8px">
+      <button class="hd-back" onclick="show('families')" style="color:rgba(255,255,255,.85)">‹</button>
+      <div style="flex:1">
+        <div class="hd-title" style="color:#fff;font-family:'Fredoka',sans-serif;font-size:18px">${esc(S.family.name)}</div>
+      </div>
+      <button style="font-size:20px;padding:6px;border-radius:8px;color:rgba(255,255,255,.85)" onclick="refreshAll()" title="Refresh">↻</button>
     </div>
-    <button style="font-size:20px;padding:6px;border-radius:8px;color:rgba(255,255,255,.85)" onclick="refreshAll()" title="Refresh">↻</button>
+    <div id="date-nav-bar" style="display:flex;align-items:center;gap:8px;border-top:1px solid rgba(255,255,255,.2);padding:8px 0">
+      <button onclick="changeDate(-1)" style="color:rgba(255,255,255,.85);font-size:18px;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.15)">‹</button>
+      <div style="flex:1;text-align:center;font-family:'Fredoka',sans-serif;font-size:16px;font-weight:600;color:#fff" id="date-nav-label">${fmtDate(S.curDate)}</div>
+      <button onclick="changeDate(1)" style="color:rgba(255,255,255,.85);font-size:18px;padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.15)">›</button>
+      ${S.curDate!==today()?`<button onclick="goToday()" style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.25);color:#fff">Today</button>`:''}
+    </div>
   </div>
   <div id="main"></div>
   <div id="nav">
@@ -766,7 +770,6 @@ function renderInsightsSection(){
       <div class="ins-grid">
         <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.sessions}</div><div class="ins-lbl">sessions</div></div>
         <div class="ins-metric"><div class="ins-val" style="color:${c.d}">${ins.avgMl}<span style="font-size:12px">ml</span></div><div class="ins-lbl">avg/feed</div></div>
-        <div class="ins-metric"><div class="ins-val">${sinceStr}</div><div class="ins-lbl">since last</div></div>
         ${ins.longestGap?`<div class="ins-metric"><div class="ins-val">⬆ ${ins.longestGap}</div><div class="ins-lbl">longest gap</div></div>`:''}
         ${ins.shortestGap&&ins.gaps.length>1?`<div class="ins-metric"><div class="ins-val">⬇ ${ins.shortestGap}</div><div class="ins-lbl">shortest gap</div></div>`:''}
         ${bmFmStr}
@@ -779,7 +782,7 @@ function renderInsightsSection(){
 // ── Daily tab ────────────────────────────────────────────────
 function renderDaily(){
   const m=document.getElementById('main');
-  m.innerHTML=renderDateNav()+`<div style="height:12px"></div>`+
+  m.innerHTML=`<div style="height:12px"></div>`+
     `<div class="baby-grid">${S.babies.map((b,i)=>renderBabyCard(b,i)).join('')}</div>`+
     renderPumpSection()+renderInsightsSection()+renderDailyNotes();
   loadNote(S.curDate).then(()=>{
@@ -788,17 +791,27 @@ function renderDaily(){
   });
   bindDailyNoteEvents();
 }
-function renderDateNav(){
-  return `<div class="date-nav">
-    <button class="btn btn-ghost btn-sm" onclick="changeDate(-1)" style="min-width:36px">‹</button>
-    <div class="date-label">${fmtDate(S.curDate)}</div>
-    <button class="btn btn-ghost btn-sm" onclick="changeDate(1)" style="min-width:36px">›</button>
-    ${S.curDate!==today()?`<button class="btn btn-sm" style="background:var(--primary-l);color:var(--primary);font-weight:700" onclick="goToday()">Today</button>`:''}
-  </div>`;
+function updateHeaderDate(){
+  const lbl=document.getElementById('date-nav-label');
+  if(lbl) lbl.textContent=fmtDate(S.curDate);
+  const bar=document.getElementById('date-nav-bar');
+  if(bar){
+    const existing=bar.querySelector('.today-btn');
+    if(existing) existing.remove();
+    if(S.curDate!==today()){
+      const btn=document.createElement('button');
+      btn.className='today-btn';
+      btn.setAttribute('style','font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.25);color:#fff;border:none;cursor:pointer');
+      btn.textContent='Today';
+      btn.onclick=goToday;
+      bar.appendChild(btn);
+    }
+  }
 }
 async function changeDate(d){
   const dt=new Date(S.curDate+'T00:00:00'); dt.setDate(dt.getDate()+d);
   S.curDate=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+  updateHeaderDate();
   await Promise.all([
     S.entries[S.curDate]?null:loadEntries(S.curDate),
     S.pump[S.curDate]?null:loadPump(S.curDate)
@@ -807,6 +820,7 @@ async function changeDate(d){
 }
 async function goToday(){
   S.curDate=today();
+  updateHeaderDate();
   await Promise.all([
     S.entries[S.curDate]?null:loadEntries(S.curDate),
     S.pump[S.curDate]?null:loadPump(S.curDate)
@@ -886,6 +900,7 @@ function renderBabyCard(b,idx){
       <span class="b-emoji">${b.emoji}</span>
       <div class="b-info">
         <div class="bname" style="color:${c.d}">${esc(b.name)}${lastFeedLabel?`<span style="font-size:11px;font-weight:500;opacity:.8;margin-left:8px">🍼 ${lastFeedLabel}</span>`:''}</div>
+        ${(()=>{const ins=computeInsights(milkEntsAll);const s=ins?.sinceMin;if(s==null)return'';const str=s>=60?`${Math.floor(s/60)}h ${s%60}m ago`:`${s}m ago`;return `<div style="font-size:11px;font-weight:600;color:${c.d};opacity:.75;margin-top:2px">⏱ ${str}</div>`;})()}
         <div class="baby-chips">
           <span style="background:${c.l};color:${c.d}">🍼 ${milkMl}ml</span>
           <span style="background:${c.l};color:${c.d}">💧 ${urine}</span>
