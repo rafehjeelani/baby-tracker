@@ -743,8 +743,8 @@ function renderHeroHeader(){
       <div style="min-width:0">
         <div class="hero-baby-name" style="color:${c.d}">${esc(b.name)}</div>
         <div class="hero-baby-meta" style="color:${c.d}">
-          ${lastFeedLabel?`<span>${lastFeedLabel}</span>`:'<span style="opacity:.5">No feeds yet</span>'}
-          ${sinceStr?`<span style="margin-left:6px">⏱ ${sinceStr}</span>`:''}
+          ${lastFeedLabel?`<div>${lastFeedLabel}</div>`:'<div style="opacity:.5">No feeds yet</div>'}
+          ${sinceStr?`<div style="margin-top:1px">⏱ ${sinceStr}</div>`:''}
         </div>
       </div>
     </div>`;
@@ -964,7 +964,7 @@ function renderBabyCard(b,idx){
         </div>
       </div>
     </div>
-    ${renderAddArea(b,selType)}
+    ${(()=>{const editing=ents.some(e=>S.editEntry[e.id]);return editing?`<div style="pointer-events:none;opacity:.35;user-select:none">${renderAddArea(b,selType)}</div>`:renderAddArea(b,selType);})()}
     <div class="baby-log">${logHTML}</div>
   </div>`;
 }
@@ -1105,7 +1105,7 @@ async function handleDelEntry(id,babyId){
   }catch(e){toast(e.message);}
 }
 function renderPumpSection(){
-  const sessions=S.pump[S.curDate]||[];
+  const sessions=[...(S.pump[S.curDate]||[])].sort((a,b)=>b.time.localeCompare(a.time));
   const totalMl=sessions.reduce((s,p)=>s+(p.ml||0),0);
   const rows=sessions.map(p=>`<div class="log-entry">
     <span class="log-time">${fmt12(p.time)}</span>
