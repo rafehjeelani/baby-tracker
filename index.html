@@ -971,7 +971,7 @@ function renderBabyCard(b,idx){
 
 function renderAddArea(b,selType){
   const pills=TYPES.map(t=>`<button class="pill ${selType===t.k?'active':''}" onclick="setSel('${b.id}','${t.k}')">${t.icon} ${t.label}</button>`).join('');
-  const mt=S.milkType[b.id]||[];
+  const mt=S.milkType[b.id]||(selType==='milk'?['BM']:[]);
   let extra='';
   if(selType==='milk') extra=`
     <div style="display:flex;gap:4px;flex-shrink:0">
@@ -991,8 +991,7 @@ function renderAddArea(b,selType){
 }
 function toggleMilkTag(babyId,tag){
   const mlVal=document.getElementById('ml-'+babyId)?.value||'';
-  const cur=S.milkType[babyId]||[];
-  S.milkType[babyId]=cur.includes(tag)?cur.filter(t=>t!==tag):[...cur,tag];
+  S.milkType[babyId]=[tag]; // single-select
   rerenderBabyCard(babyId);
   if(mlVal){ const el=document.getElementById('ml-'+babyId); if(el) el.value=mlVal; }
 }
@@ -1034,8 +1033,7 @@ function startEdit(entryId){ S.editEntry[entryId]=true; rerenderCardByEntry(entr
 function cancelEdit(entryId,babyId){ delete S.editEntry[entryId]; rerenderBabyCard(babyId); }
 function toggleEditTag(entryId,tag){
   const e=findEntry(entryId); if(!e) return;
-  const tags=(e.note||'').split('+').filter(Boolean);
-  e.note=tags.includes(tag)?tags.filter(t=>t!==tag).join('+'):([...tags,tag].join('+'));
+  e.note=tag; // single-select
   rerenderCardByEntry(entryId);
 }
 function findEntry(id){
@@ -1068,7 +1066,7 @@ async function handleSaveEdit(entryId,babyId){
     });
   }catch(err){toast(err.message);}
 }
-function setSel(babyId,type){ S.selType[babyId]=type; rerenderBabyCard(babyId); }
+function setSel(babyId,type){ S.selType[babyId]=type; if(type==='milk'&&!S.milkType[babyId]?.length) S.milkType[babyId]=['BM']; rerenderBabyCard(babyId); }
 function rerenderBabyCard(babyId){
   const el=document.getElementById('bc-'+babyId);
   if(!el) return;
@@ -1084,6 +1082,7 @@ async function handleAddEntry(babyId){
   const note=type==='milk'?(mt.length?mt.join('+'):null):(type==='medicine'||type==='vitamin')?document.getElementById('note-'+babyId)?.value||'':null;
   try{
     await addEntry(babyId,type,time,ml,note);
+    if(type==='milk') S.milkType[babyId]=['BM'];
     rerenderBabyCard(babyId); renderHeader();
     document.querySelector('.glance')?.replaceWith(htmlToEl(renderGlance()));
   }catch(e){toast(e.message);}
