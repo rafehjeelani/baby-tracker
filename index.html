@@ -345,6 +345,18 @@ const TYPES=[
   {k:'medicine',icon:'🩹',label:'Medicine'}
 ];
 const PUMP_KEY='pump';
+const VAX_SCHEDULE=[
+  {days:0,   label:'At Birth',    vaccines:['BCG','Hep B-1','OPV-0']},
+  {days:42,  label:'6 Weeks',     vaccines:['Hep B-2','IPV-1','DTwP-1','HiB-1','PCV-1','Rotavirus-1']},
+  {days:70,  label:'10 Weeks',    vaccines:['IPV-2','DTwP-2','HiB-2','PCV-2','Rotavirus-2']},
+  {days:98,  label:'14 Weeks',    vaccines:['IPV-3','DTwP-3','HiB-3','PCV-3','Rotavirus-3']},
+  {days:180, label:'6 Months',    vaccines:['OPV-1','Hep B-3']},
+  {days:270, label:'9 Months',    vaccines:['OPV-2','MMR-1','TCV (Typhoid)']},
+  {days:365, label:'12 Months',   vaccines:['Hep A-1']},
+  {days:456, label:'15 Months',   vaccines:['PCV (Booster)','MMR-2','Varicella-1']},
+  {days:487, label:'16 Months',   vaccines:['IPV (Booster)','DwTP (Booster)','HiB (Booster)']},
+  {days:547, label:'18 Months',   vaccines:['Hep A-2']},
+];
 const BABY_EMOJIS=['🌸','⭐','🐻','🦋','🌺','🚀','🐣','🦁','🌼','🐧','🍒','🎀'];
 const CHART_COLORS=['#3b82f6','#ec4899','#10b981','#f59e0b','#8b5cf6'];
 
@@ -701,9 +713,9 @@ function bindSetupEvents(emojiOpts){
 function renderTracker(a){
   a.innerHTML=`<div id="hdr"></div><div id="main"></div>
   <div id="nav">
-    ${['daily','growth','summary','settings'].map((t,i)=>{
-      const icons=['📅','📏','📊','⚙️'];
-      const labels=['Daily','Growth','Summary','Settings'];
+    ${['daily','growth','vaccines','summary','settings'].map((t,i)=>{
+      const icons=['📅','📏','💉','📊','⚙️'];
+      const labels=['Daily','Growth','Vaccines','Summary','Settings'];
       return `<button class="${S.tab===t?'active':''}" onclick="setTab('${t}')"><span class="icon">${icons[i]}</span>${labels[i]}</button>`;
     }).join('')}
   </div>`;
@@ -736,7 +748,12 @@ function renderHeroHeader(){
     const lastFeed=lastFeedToday||yestMilk[0]?.time;
     const lastFeedLabel=lastFeed?(lastFeedToday?'🍼 '+fmt12(lastFeed):'↩ '+fmt12(lastFeed)):null;
     const ins=computeInsights(milkToday);
-    const sinceMin=ins?.sinceMin;
+    let sinceMin=ins?.sinceMin;
+    if(sinceMin==null&&yestMilk[0]){
+      const now=new Date();const nowMin=now.getHours()*60+now.getMinutes();
+      const yestLastMin=toMin(yestMilk[0].time);
+      sinceMin=nowMin+(1440-yestLastMin);
+    }
     const sinceStr=sinceMin!=null?(sinceMin>=60?`${Math.floor(sinceMin/60)}h ${sinceMin%60}m ago`:`${sinceMin}m ago`):null;
     return `<div class="hero-baby-card" style="background:${c.l};border:1.5px solid ${c.m}20">
       <div class="hero-baby-emoji">${b.emoji}</div>
@@ -778,10 +795,11 @@ function renderTab(){
   const m=document.getElementById('main');
   if(!m) return;
   renderHeader();
-  if(S.tab==='daily')    renderDaily();
-  else if(S.tab==='growth')   renderGrowth();
-  else if(S.tab==='summary')  renderSummary();
-  else if(S.tab==='settings') renderSettings();
+  if(S.tab==='daily')       renderDaily();
+  else if(S.tab==='growth')    renderGrowth();
+  else if(S.tab==='vaccines')  renderVaccinations();
+  else if(S.tab==='summary')   renderSummary();
+  else if(S.tab==='settings')  renderSettings();
   document.querySelectorAll('#nav button').forEach(b=>{
     b.classList.toggle('active',b.getAttribute('onclick')===`setTab('${S.tab}')`);
   });
@@ -991,9 +1009,15 @@ function renderAddArea(b,selType){
 }
 function toggleMilkTag(babyId,tag){
   const mlVal=document.getElementById('ml-'+babyId)?.value||'';
+  const timeH=document.getElementById('time-'+babyId+'-h')?.value;
+  const timeM=document.getElementById('time-'+babyId+'-m')?.value;
+  const timeAp=document.getElementById('time-'+babyId+'-ap')?.value;
   S.milkType[babyId]=[tag]; // single-select
   rerenderBabyCard(babyId);
   if(mlVal){ const el=document.getElementById('ml-'+babyId); if(el) el.value=mlVal; }
+  if(timeH){ const h=document.getElementById('time-'+babyId+'-h'); if(h) h.value=timeH; }
+  if(timeM){ const m=document.getElementById('time-'+babyId+'-m'); if(m) m.value=timeM; }
+  if(timeAp){ const ap=document.getElementById('time-'+babyId+'-ap'); if(ap) ap.value=timeAp; }
 }
 
 function milkTagChips(note){
@@ -1217,13 +1241,27 @@ function renderGrowth(){
   const m=document.getElementById('main');
   const mfOpts=[['all','All'],['weight','⚖️ Weight'],['length','📏 Length'],['head','🧠 Head']];
   const mfPills=mfOpts.map(([k,l])=>`<button class="pill${S.measFilter===k?' active':''}" onclick="setMeasFilter('${k}')">${l}</button>`).join('');
-  const vfPills=[['all','All'],...S.babies.map(b=>[b.id,`${b.emoji} ${esc(b.name)}`])].map(([k,l])=>`<button class="pill${S.vaxFilter===k?' active':''}" onclick="setVaxFilter('${k}')">${l}</button>`).join('');
-  m.innerHTML=`<div class="section-title">📏 Measurements</div>
+  const growthCards=S.babies.map((b,i)=>{
+    const c=getBabyColor(b.id,i); const ms=S.meas[b.id]||[];
+    const w=ms.find(mn=>mn.mtype==='weight'),l=ms.find(mn=>mn.mtype==='length'),h=ms.find(mn=>mn.mtype==='head');
+    const curAge=babyAge(b.dob,today());
+    const latestDate=([w,l,h].filter(Boolean).map(mn=>mn.date).sort()).pop();
+    const measAge=latestDate?babyAge(b.dob,latestDate):'';
+    return `<div class="card" style="flex:1;min-width:140px">
+      <div style="font-weight:700;color:${c.d};font-size:15px;margin-bottom:4px">${b.emoji} ${esc(b.name)}</div>
+      ${curAge?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Now: <strong>${curAge}</strong></div>`:''}
+      ${w?`<div style="font-size:13px;padding:3px 0">⚖️ <strong>${w.value}</strong> kg</div>`:''}
+      ${l?`<div style="font-size:13px;padding:3px 0">📏 <strong>${l.value}</strong> cm</div>`:''}
+      ${h?`<div style="font-size:13px;padding:3px 0">🧠 <strong>${h.value}</strong> cm</div>`:''}
+      ${!w&&!l&&!h?`<div style="font-size:12px;color:var(--muted)">No data yet</div>`:''}
+      ${measAge?`<div style="font-size:11px;color:var(--muted);margin-top:6px;border-top:1px solid var(--border);padding-top:6px">Recorded at: <strong>${measAge}</strong></div>`:''}
+    </div>`;
+  }).join('');
+  m.innerHTML=`<div class="section-title">Latest Growth</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px">${growthCards}</div>
+    <div class="section-title">📏 Measurements</div>
     <div class="type-pills" style="padding:0 0 10px">${mfPills}</div>
-    <div class="baby-grid">${S.babies.map((b,i)=>renderMeasCard(b,i)).join('')}</div>
-    <div class="section-title">💉 Vaccines</div>
-    <div class="type-pills" style="padding:0 0 10px">${vfPills}</div>
-    ${renderVaccineSection()}`;
+    <div class="baby-grid">${S.babies.map((b,i)=>renderMeasCard(b,i)).join('')}</div>`;
 }
 function renderMeasCard(b,idx){
   const c=getBabyColor(b.id,idx);
@@ -1320,6 +1358,108 @@ async function handleDelVax(id,babyId){
   try{ await deleteVaccine(id,babyId); renderGrowth(); }catch(e){ toast(e.message); }
 }
 
+// ── Vaccines tab ─────────────────────────────────────────────
+function vaxDate(dob,days){
+  if(!dob) return null;
+  const d=new Date(dob+'T00:00:00'); d.setDate(d.getDate()+days);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+}
+function renderVaccinations(){
+  const m=document.getElementById('main');
+  if(!S.vaxTabFilter) S.vaxTabFilter='all';
+  const bfPills=[['all','All'],...S.babies.map(b=>[b.id,`${b.emoji} ${esc(b.name)}`])]
+    .map(([k,l])=>`<button class="pill${S.vaxTabFilter===k?' active':''}" onclick="S.vaxTabFilter='${k}';renderVaccinations()">${l}</button>`).join('');
+  const babies=S.vaxTabFilter==='all'?S.babies:S.babies.filter(b=>b.id===S.vaxTabFilter);
+  const todayStr=today();
+
+  // Upcoming: next milestone not fully done across all filtered babies
+  const upcomingItems=[];
+  babies.forEach(b=>{
+    if(!b.dob) return;
+    const given=new Set((S.vax[b.id]||[]).map(v=>v.name));
+    for(const slot of VAX_SCHEDULE){
+      const due=vaxDate(b.dob,slot.days);
+      const allDone=slot.vaccines.every(v=>given.has(v));
+      if(!allDone && due>=todayStr){
+        upcomingItems.push({b,slot,due,given});
+        break;
+      }
+    }
+  });
+  const upcomingHTML=upcomingItems.length?upcomingItems.map(({b,slot,due,given})=>{
+    const c=getBabyColor(b.id,S.babies.indexOf(b));
+    const remaining=slot.vaccines.filter(v=>!given.has(v));
+    const daysUntil=Math.round((new Date(due+'T00:00:00')-new Date(todayStr+'T00:00:00'))/(86400000));
+    const dueLabel=daysUntil===0?'Today':daysUntil===1?'Tomorrow':`In ${daysUntil} days`;
+    return `<div class="card" style="border-left:4px solid ${c.d};padding-left:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-weight:700;color:${c.d}">${b.emoji} ${esc(b.name)} — ${slot.label}</div>
+        <span style="font-size:12px;font-weight:700;color:${daysUntil<=7?'#e5673d':'var(--muted)'}">${dueLabel}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">${due}</div>
+      <div style="font-size:12px;margin-top:4px">${remaining.map(v=>`<span style="display:inline-block;background:${c.l};color:${c.d};border-radius:20px;padding:2px 8px;margin:2px 3px 2px 0;font-weight:600">${esc(v)}</span>`).join('')}</div>
+    </div>`;
+  }).join(''):`<div class="card" style="text-align:center;padding:18px;color:var(--muted);font-size:13px">All upcoming vaccines are on track ✓</div>`;
+
+  // Full checklist per baby
+  const checklistHTML=babies.map(b=>{
+    if(!b.dob) return `<div class="card"><div style="font-size:13px;color:var(--muted)">No DOB set for ${esc(b.name)}</div></div>`;
+    const c=getBabyColor(b.id,S.babies.indexOf(b));
+    const given=new Set((S.vax[b.id]||[]).map(v=>v.name));
+    const givenMap={};
+    (S.vax[b.id]||[]).forEach(v=>{ givenMap[v.name]=v; });
+    const slots=VAX_SCHEDULE.map(slot=>{
+      const due=vaxDate(b.dob,slot.days);
+      const isPast=due<todayStr;
+      const rows=slot.vaccines.map(vname=>{
+        const done=given.has(vname);
+        const rec=givenMap[vname];
+        return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+          <input type="checkbox" ${done?'checked':''} style="width:16px;height:16px;accent-color:${c.d};cursor:pointer;flex-shrink:0"
+            onchange="handleVaxCheck('${b.id}','${esc(vname)}','${due}',this.checked)"/>
+          <span style="flex:1;font-size:13px;${done?'text-decoration:line-through;color:var(--muted)':''}">${esc(vname)}</span>
+          ${rec?`<span style="font-size:11px;color:var(--muted)">${rec.date}</span>`:''}
+        </div>`;
+      }).join('');
+      const allDone=slot.vaccines.every(v=>given.has(v));
+      const statusColor=allDone?'#10b981':isPast?'#e5673d':c.d;
+      const statusIcon=allDone?'✓':isPast?'!':'○';
+      return `<div style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-size:12px;font-weight:700;color:${statusColor}">${statusIcon} ${slot.label}</div>
+          <div style="font-size:11px;color:var(--muted)">${due}</div>
+        </div>
+        ${rows}
+      </div>`;
+    }).join('');
+    return `<div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:22px">${b.emoji}</span>
+        <div>
+          <div style="font-weight:700;color:${c.d};font-size:15px">${esc(b.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">${babyAge(b.dob,todayStr)||'—'} old · DOB ${b.dob}</div>
+        </div>
+      </div>
+      ${slots}
+    </div>`;
+  }).join('');
+
+  m.innerHTML=`<div class="type-pills" style="padding:0 0 10px">${bfPills}</div>
+    <div class="section-title">⏭ Upcoming</div>
+    ${upcomingHTML}
+    <div class="section-title" style="margin-top:16px">📋 Full Schedule</div>
+    ${checklistHTML}`;
+}
+async function handleVaxCheck(babyId,name,date,checked){
+  if(checked){
+    try{ await addVaccine(babyId,date,name,''); }catch(e){ toast(e.message); return; }
+  } else {
+    const rec=(S.vax[babyId]||[]).find(v=>v.name===name);
+    if(rec){ try{ await deleteVaccine(rec.id,babyId); }catch(e){ toast(e.message); return; } }
+  }
+  renderVaccinations();
+}
+
 // ── Summary tab ──────────────────────────────────────────────
 function setSummaryDays(n){ S.summaryDays=n; renderSummary(); }
 async function renderSummary(){
@@ -1363,36 +1503,13 @@ async function renderSummary(){
     const bThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">${b.emoji} ${ini(b)}</th>`;}).join('');
     const urThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💧 ${ini(b)}</th>`;}).join('');
     const poThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💩 ${ini(b)}</th>`;}).join('');
-    const growthCards=S.babies.map((b,i)=>{
-      const c=getBabyColor(b.id,i); const ms=S.meas[b.id]||[];
-      const w=ms.find(m=>m.mtype==='weight'),l=ms.find(m=>m.mtype==='length'),h=ms.find(m=>m.mtype==='head');
-      const curAge=babyAge(b.dob,today());
-      const latestDate=([w,l,h].filter(Boolean).map(m=>m.date).sort()).pop();
-      const measAge=latestDate?babyAge(b.dob,latestDate):'';
-      return `<div class="card" style="flex:1;min-width:140px">
-        <div style="font-weight:700;color:${c.d};font-size:15px;margin-bottom:4px">${b.emoji} ${esc(b.name)}</div>
-        ${curAge?`<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Now: <strong>${curAge}</strong></div>`:''}
-        ${w?`<div style="font-size:13px;padding:3px 0">⚖️ <strong>${w.value}</strong> kg</div>`:''}
-        ${l?`<div style="font-size:13px;padding:3px 0">📏 <strong>${l.value}</strong> cm</div>`:''}
-        ${h?`<div style="font-size:13px;padding:3px 0">🧠 <strong>${h.value}</strong> cm</div>`:''}
-        ${!w&&!l&&!h?`<div style="font-size:12px;color:var(--muted)">No data yet</div>`:''}
-        ${measAge?`<div style="font-size:11px;color:var(--muted);margin-top:6px;border-top:1px solid var(--border);padding-top:6px">Recorded at: <strong>${measAge}</strong></div>`:''}
-      </div>`;
-    }).join('');
-    const allVax=S.babies.flatMap(b=>(S.vax[b.id]||[]).map(v=>({...v,baby:b})));
-    allVax.sort((a,b)=>b.date.localeCompare(a.date));
-    const vaxRows=allVax.slice(0,8).map(v=>`<li style="font-size:13px;padding:7px 0;border-bottom:1px solid var(--border);display:flex;gap:8px"><span style="color:var(--muted);font-size:12px;min-width:80px">${v.date}</span><span>${v.baby.emoji} ${esc(v.baby.name)}: <strong>${esc(v.name)}</strong></span></li>`).join('');
     m.innerHTML=`
       <div class="type-pills" style="padding:0 0 10px">${filterPills}</div>
       <div class="section-title">${S.summaryDays}-Day Feeding (ml)</div>
       <div class="card" style="overflow-x:auto;padding:0"><table class="sum-table" style="margin:0">
         <thead><tr><th>Date</th>${bThs}<th style="color:#7c3aed">🤱 ml</th>${urThs}${poThs}</tr></thead>
         <tbody>${rows}</tbody>
-      </table></div>
-      <div class="section-title">Latest Growth</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">${growthCards}</div>
-      <div class="section-title">Recent Vaccines</div>
-      <div class="card"><ul style="list-style:none">${vaxRows||'<li style="font-size:13px;color:var(--muted);padding:8px 0">No vaccines recorded</li>'}</ul></div>`;
+      </table></div>`;
   }catch(e){m.innerHTML=`<div style="padding:20px;color:#ef4444;font-size:14px">${esc(e.message)}</div>`;}
 }
 
