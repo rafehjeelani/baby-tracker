@@ -1600,8 +1600,8 @@ async function renderSummary(){
             <div style="font-size:10px;color:var(--muted)">Avg ml/day</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
-            <div style="font-size:18px;font-weight:700;color:${bc.d}">${avgFeedsDay}${pctBadge(parseFloat(avgFeedsDay),prevAvgFeedsDay)}</div>
-            <div style="font-size:10px;color:var(--muted)">Avg feeds/day</div>
+            <div style="font-size:18px;font-weight:700;color:${bc.d}">${bestDay.ml?groupFeeds(byDate[bestDay.d][b.id].filter(e=>e.type==='milk')).length+' feeds':'—'}</div>
+            <div style="font-size:10px;color:var(--muted)">Best day feeds${bestDay.d?' · '+bestDay.d.slice(5):''}</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
             <div style="font-size:15px;font-weight:700;color:${bc.d}">${bestDay.ml?bestDay.ml+'ml':'—'}</div>
