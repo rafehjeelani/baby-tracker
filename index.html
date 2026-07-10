@@ -1536,14 +1536,14 @@ async function renderSummary(){
         const v=Math.round(yMax*i/3);
         const y=PT+cH-(cH*v/yMax);
         return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>
-                 <text x="${PL-4}" y="${y+3.5}" font-size="8" fill="var(--muted)" text-anchor="end">${v}</text>`;
+                 <text x="${PL-4}" y="${y+3.5}" style="font-size:10px" fill="var(--muted)" text-anchor="end">${v}</text>`;
       }).join('');
       // x labels (show ~5 evenly spaced)
       const xStep=Math.max(1,Math.floor(n/4));
       const xLabels=chronoDates.map((d,i)=>{
         if(i%xStep!==0&&i!==n-1) return '';
         const x=PL+(i/(n-1||1))*cW;
-        return `<text x="${x}" y="${H-4}" font-size="8" fill="var(--muted)" text-anchor="middle">${d.slice(5)}</text>`;
+        return `<text x="${x}" y="${H-4}" style="font-size:10px" fill="var(--muted)" text-anchor="middle">${d.slice(5)}</text>`;
       }).join('');
       // baby lines
       const lines=S.babies.map((b,bi)=>{
@@ -1630,8 +1630,8 @@ async function renderSummary(){
         <tbody>${rows}</tbody>
       </table></div>
       <div class="section-title">${S.summaryDays}-Day Insights</div>
-      ${lineChart}
-      <div class="baby-grid">${insightTiles}</div>`;
+      <div class="baby-grid">${insightTiles}</div>
+      ${lineChart}`;
   }catch(e){m.innerHTML=`<div style="padding:20px;color:#ef4444;font-size:14px">${esc(e.message)}</div>`;}
 }
 
