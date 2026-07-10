@@ -1486,11 +1486,18 @@ async function renderSummary(){
   for(let i=S.summaryDays;i<S.summaryDays*2;i++){const d=new Date();d.setDate(d.getDate()-i);prevDates.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));}
   try{
     const allFetchDates=[...dates,...prevDates];
-    const {data,error}=await sb.from('entries').select('*').eq('family_id',S.family.id).in('date',allFetchDates).order('date');
+    const [{data,error},{data:pumpData,error:pumpErr}]=await Promise.all([
+      sb.from('entries').select('*').eq('family_id',S.family.id).in('date',allFetchDates).order('date'),
+      sb.from('pump_sessions').select('*').eq('family_id',S.family.id).in('date',dates)
+    ]);
     if(error) throw error;
+    if(pumpErr) throw pumpErr;
     const byDate={};
     [...dates,...prevDates].forEach(d=>{byDate[d]={};S.babies.forEach(b=>byDate[d][b.id]=[]);});
     (data||[]).forEach(e=>{if(byDate[e.date]&&byDate[e.date][e.baby_id])byDate[e.date][e.baby_id].push(e);});
+    const pumpByDate={};
+    dates.forEach(d=>pumpByDate[d]=[]);
+    (pumpData||[]).forEach(p=>{if(pumpByDate[p.date])pumpByDate[p.date].push(p);});
     const maxMl=Math.max(1,...dates.flatMap(d=>S.babies.map(b=>byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0))));
     const rows=dates.map(d=>{
       const cells=S.babies.map((b,bi)=>{
@@ -1501,9 +1508,12 @@ async function renderSummary(){
         const bc=getBabyColor(b.id,bi);
         return `<td><div class="bar-wrap"><span style="font-size:11px;color:var(--muted);min-width:22px;display:inline-block;text-align:right">${feeds?feeds+'×':''}</span><div class="bar" style="width:${w}px;background:${bc.d}"></div><span style="font-size:12px;font-weight:600;min-width:28px;color:${bc.d}">${ml}</span></div></td>`;
       }).join('');
+      const pumpMl=pumpByDate[d].reduce((s,p)=>s+(p.ml||0),0);
+      const pumpSessions=pumpByDate[d].length;
+      const pumpCell=pumpMl?`<span style="font-weight:600;color:#7c3aed">${pumpMl}</span><span style="font-size:11px;color:var(--muted);margin-left:3px">${pumpSessions}×</span>`:'-';
       const urCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const n=byDate[d][b.id].filter(e=>e.type==='urine').length;return `<td style="font-weight:600;color:${bc.d}">${n||'-'}</td>`;}).join('');
       const poCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const n=byDate[d][b.id].filter(e=>e.type==='potty').length;return `<td style="font-weight:600;color:${bc.d}">${n||'-'}</td>`;}).join('');
-      return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}${urCells}${poCells}</tr>`;
+      return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}<td>${pumpCell}</td>${urCells}${poCells}</tr>`;
     }).join('');
     const ini=b=>b.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const bThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">${b.emoji} ${ini(b)}</th>`;}).join('');
@@ -1626,7 +1636,7 @@ async function renderSummary(){
       <div class="type-pills" style="padding:0 0 10px">${filterPills}</div>
       <div class="section-title">${S.summaryDays}-Day Feeding (ml)</div>
       <div class="card" style="overflow-x:auto;padding:0"><table class="sum-table" style="margin:0">
-        <thead><tr><th>Date</th>${bThs}${urThs}${poThs}</tr></thead>
+        <thead><tr><th>Date</th>${bThs}<th style="color:#7c3aed">🤱 ml</th>${urThs}${poThs}</tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
       <div class="section-title">${S.summaryDays}-Day Insights</div>
