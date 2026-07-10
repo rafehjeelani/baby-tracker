@@ -1612,12 +1612,12 @@ async function renderSummary(){
             <div style="font-size:10px;color:var(--muted)">Lowest day${lowestFeedDay.d?' · '+lowestFeedDay.d.slice(5):''}</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
-            <div style="font-size:18px;font-weight:700;color:${bc.d}">${totalUr}${pctBadge(totalUr,prevTotalUr)}</div>
-            <div style="font-size:10px;color:var(--muted)">💧 Total urine</div>
+            <div style="font-size:18px;font-weight:700;color:${bc.d}">${(totalUr/n).toFixed(1)}${pctBadge(totalUr,prevTotalUr)}</div>
+            <div style="font-size:10px;color:var(--muted)">💧 Avg urine/day</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
-            <div style="font-size:18px;font-weight:700;color:${bc.d}">${totalPo}${pctBadge(totalPo,prevTotalPo)}</div>
-            <div style="font-size:10px;color:var(--muted)">💩 Total potty</div>
+            <div style="font-size:18px;font-weight:700;color:${bc.d}">${(totalPo/n).toFixed(1)}${pctBadge(totalPo,prevTotalPo)}</div>
+            <div style="font-size:10px;color:var(--muted)">💩 Avg potty/day</div>
           </div>
         </div>
       </div>`;
