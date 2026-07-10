@@ -1428,12 +1428,19 @@ function renderVaccinations(){
       const allDone=slot.vaccines.every(v=>given.has(v));
       const statusColor=allDone?'#10b981':isPast?'#e5673d':c.d;
       const statusIcon=allDone?'✓':isPast?'!':'○';
+      const colKey=b.id+'_'+slot.days;
+      if(!S.vaxCollapsed) S.vaxCollapsed={};
+      const isOpen=!S.vaxCollapsed[colKey];
       return `<div style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border)"
+          onclick="S.vaxCollapsed['${colKey}']=!S.vaxCollapsed['${colKey}'];renderVaccinations()">
           <div style="font-size:12px;font-weight:700;color:${statusColor}">${statusIcon} ${slot.label}</div>
-          <div style="font-size:11px;color:var(--muted)">${due}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-size:11px;color:var(--muted)">${due}</div>
+            <span style="font-size:14px;color:var(--muted);line-height:1">${isOpen?'▾':'▸'}</span>
+          </div>
         </div>
-        ${rows}
+        ${isOpen?rows:''}
       </div>`;
     }).join('');
     return `<div class="card" style="margin-bottom:14px">
