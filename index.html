@@ -1430,6 +1430,7 @@ function renderVaccinations(){
       const statusIcon=allDone?'✓':isPast?'!':'○';
       const colKey=b.id+'_'+slot.days;
       if(!S.vaxCollapsed) S.vaxCollapsed={};
+      if(S.vaxCollapsed[colKey]===undefined) S.vaxCollapsed[colKey]=allDone;
       const isOpen=!S.vaxCollapsed[colKey];
       return `<div style="margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border)"
