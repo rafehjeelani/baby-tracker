@@ -1481,11 +1481,15 @@ async function renderSummary(){
   m.innerHTML=`<div class="type-pills" style="padding:0 0 10px">${filterPills}</div><div style="display:flex;align-items:center;justify-content:center;padding:60px 0"><div class="spinner"></div></div>`;
   const dates=[];
   for(let i=0;i<S.summaryDays;i++){const d=new Date();d.setDate(d.getDate()-i);dates.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));}
+  // also fetch previous period for % comparison
+  const prevDates=[];
+  for(let i=S.summaryDays;i<S.summaryDays*2;i++){const d=new Date();d.setDate(d.getDate()-i);prevDates.push(d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()));}
   try{
-    const {data,error}=await sb.from('entries').select('*').eq('family_id',S.family.id).in('date',dates).order('date');
+    const allFetchDates=[...dates,...prevDates];
+    const {data,error}=await sb.from('entries').select('*').eq('family_id',S.family.id).in('date',allFetchDates).order('date');
     if(error) throw error;
     const byDate={};
-    dates.forEach(d=>{byDate[d]={};S.babies.forEach(b=>byDate[d][b.id]=[]);});
+    [...dates,...prevDates].forEach(d=>{byDate[d]={};S.babies.forEach(b=>byDate[d][b.id]=[]);});
     (data||[]).forEach(e=>{if(byDate[e.date]&&byDate[e.date][e.baby_id])byDate[e.date][e.baby_id].push(e);});
     const maxMl=Math.max(1,...dates.flatMap(d=>S.babies.map(b=>byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0))));
     const rows=dates.map(d=>{
@@ -1506,27 +1510,97 @@ async function renderSummary(){
     const urThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💧 ${ini(b)}</th>`;}).join('');
     const poThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💩 ${ini(b)}</th>`;}).join('');
     const n=dates.length||1;
+    // helper: % change badge
+    function pctBadge(curr,prev){
+      if(!prev) return '';
+      const pct=Math.round((curr-prev)/prev*100);
+      if(pct===0) return '';
+      const up=pct>0;
+      const col=up?'#16a34a':'#dc2626';
+      const arrow=up?'▲':'▼';
+      return `<span style="font-size:10px;font-weight:700;color:${col};margin-left:4px">${arrow}${Math.abs(pct)}%</span>`;
+    }
+    // line chart SVG for ml/day — all babies on one chart
+    function buildLineChart(){
+      const W=320,H=90,PL=36,PR=8,PT=8,PB=22;
+      const cW=W-PL-PR, cH=H-PT-PB;
+      const n=dates.length;
+      // per baby: ml per day in chronological order (dates is newest-first, reverse for chart)
+      const chronoDates=[...dates].reverse();
+      const allVals=S.babies.flatMap(b=>chronoDates.map(d=>byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0)));
+      const maxV=Math.max(1,...allVals);
+      const step=Math.ceil(maxV/3/50)*50||50;
+      const yMax=Math.ceil(maxV/step)*step||step;
+      // y gridlines
+      const gridLines=[0,1,2,3].map(i=>{
+        const v=Math.round(yMax*i/3);
+        const y=PT+cH-(cH*v/yMax);
+        return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>
+                 <text x="${PL-4}" y="${y+3.5}" font-size="8" fill="var(--muted)" text-anchor="end">${v}</text>`;
+      }).join('');
+      // x labels (show ~5 evenly spaced)
+      const xStep=Math.max(1,Math.floor(n/4));
+      const xLabels=chronoDates.map((d,i)=>{
+        if(i%xStep!==0&&i!==n-1) return '';
+        const x=PL+(i/(n-1||1))*cW;
+        return `<text x="${x}" y="${H-4}" font-size="8" fill="var(--muted)" text-anchor="middle">${d.slice(5)}</text>`;
+      }).join('');
+      // baby lines
+      const lines=S.babies.map((b,bi)=>{
+        const bc=getBabyColor(b.id,bi);
+        const pts=chronoDates.map((d,i)=>{
+          const v=byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+          const x=PL+(i/(n-1||1))*cW;
+          const y=PT+cH-(cH*v/yMax);
+          return `${x},${y}`;
+        }).join(' ');
+        const dots=chronoDates.map((d,i)=>{
+          const v=byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);
+          const x=PL+(i/(n-1||1))*cW;
+          const y=PT+cH-(cH*v/yMax);
+          return `<circle cx="${x}" cy="${y}" r="2.5" fill="${bc.d}"/>`;
+        }).join('');
+        return `<polyline points="${pts}" fill="none" stroke="${bc.d}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}`;
+      }).join('');
+      const legend=S.babies.map((b,bi)=>{
+        const bc=getBabyColor(b.id,bi);
+        return `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px"><span style="display:inline-block;width:12px;height:3px;background:${bc.d};border-radius:2px"></span><span style="font-size:10px;color:var(--muted)">${b.emoji} ${esc(b.name)}</span></span>`;
+      }).join('');
+      return `<div class="card" style="padding:12px 14px 10px">
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px">🍼 ml/day trend</div>
+        <svg width="100%" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">${gridLines}${xLabels}${lines}</svg>
+        <div style="margin-top:6px">${legend}</div>
+      </div>`;
+    }
+    const lineChart=buildLineChart();
     const insightTiles=S.babies.map((b,bi)=>{
       const bc=getBabyColor(b.id,bi);
       const allMilk=dates.flatMap(d=>byDate[d][b.id].filter(e=>e.type==='milk'));
+      const prevMilk=prevDates.flatMap(d=>byDate[d][b.id].filter(e=>e.type==='milk'));
       const totalMl=allMilk.reduce((s,e)=>s+(e.ml||0),0);
+      const prevTotalMl=prevMilk.reduce((s,e)=>s+(e.ml||0),0);
       const totalFeeds=groupFeeds(allMilk).length;
+      const prevTotalFeeds=groupFeeds(prevMilk).length;
       const avgMlDay=Math.round(totalMl/n);
+      const prevAvgMlDay=Math.round(prevTotalMl/n);
       const avgFeedsDay=(totalFeeds/n).toFixed(1);
+      const prevAvgFeedsDay=prevTotalFeeds/n;
       const bestDay=dates.reduce((best,d)=>{const ml=byDate[d][b.id].filter(e=>e.type==='milk').reduce((s,e)=>s+(e.ml||0),0);return ml>best.ml?{d,ml}:best;},{d:'',ml:0});
       const daysWithFeeds=dates.filter(d=>groupFeeds(byDate[d][b.id].filter(e=>e.type==='milk')).length>0);
       const lowestFeedDay=daysWithFeeds.reduce((low,d)=>{const f=groupFeeds(byDate[d][b.id].filter(e=>e.type==='milk')).length;return f<low.f?{d,f}:low;},{d:'',f:Infinity});
       const totalUr=dates.reduce((s,d)=>s+byDate[d][b.id].filter(e=>e.type==='urine').length,0);
+      const prevTotalUr=prevDates.reduce((s,d)=>s+byDate[d][b.id].filter(e=>e.type==='urine').length,0);
       const totalPo=dates.reduce((s,d)=>s+byDate[d][b.id].filter(e=>e.type==='potty').length,0);
+      const prevTotalPo=prevDates.reduce((s,d)=>s+byDate[d][b.id].filter(e=>e.type==='potty').length,0);
       return `<div class="card" style="border-top:3px solid ${bc.d}">
         <div style="font-weight:700;color:${bc.d};margin-bottom:10px">${b.emoji} ${esc(b.name)}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
-            <div style="font-size:18px;font-weight:700;color:${bc.d}">${avgMlDay}<span style="font-size:11px">ml</span></div>
+            <div style="font-size:18px;font-weight:700;color:${bc.d}">${avgMlDay}<span style="font-size:11px">ml</span>${pctBadge(avgMlDay,prevAvgMlDay)}</div>
             <div style="font-size:10px;color:var(--muted)">Avg ml/day</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
-            <div style="font-size:18px;font-weight:700;color:${bc.d}">${avgFeedsDay}</div>
+            <div style="font-size:18px;font-weight:700;color:${bc.d}">${avgFeedsDay}${pctBadge(parseFloat(avgFeedsDay),prevAvgFeedsDay)}</div>
             <div style="font-size:10px;color:var(--muted)">Avg feeds/day</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
@@ -1538,11 +1612,11 @@ async function renderSummary(){
             <div style="font-size:10px;color:var(--muted)">Lowest day${lowestFeedDay.d?' · '+lowestFeedDay.d.slice(5):''}</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
-            <div style="font-size:18px;font-weight:700;color:${bc.d}">${totalUr}</div>
+            <div style="font-size:18px;font-weight:700;color:${bc.d}">${totalUr}${pctBadge(totalUr,prevTotalUr)}</div>
             <div style="font-size:10px;color:var(--muted)">💧 Total urine</div>
           </div>
           <div style="background:var(--primary-l);border-radius:10px;padding:8px 10px">
-            <div style="font-size:18px;font-weight:700;color:${bc.d}">${totalPo}</div>
+            <div style="font-size:18px;font-weight:700;color:${bc.d}">${totalPo}${pctBadge(totalPo,prevTotalPo)}</div>
             <div style="font-size:10px;color:var(--muted)">💩 Total potty</div>
           </div>
         </div>
@@ -1556,6 +1630,7 @@ async function renderSummary(){
         <tbody>${rows}</tbody>
       </table></div>
       <div class="section-title">${S.summaryDays}-Day Insights</div>
+      ${lineChart}
       <div class="baby-grid">${insightTiles}</div>`;
   }catch(e){m.innerHTML=`<div style="padding:20px;color:#ef4444;font-size:14px">${esc(e.message)}</div>`;}
 }
