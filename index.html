@@ -1501,12 +1501,14 @@ async function renderSummary(){
         const bc=getBabyColor(b.id,bi);
         return `<td><div class="bar-wrap"><span style="font-size:11px;color:var(--muted);min-width:22px;display:inline-block;text-align:right">${feeds?feeds+'×':''}</span><div class="bar" style="width:${w}px;background:${bc.d}"></div><span style="font-size:12px;font-weight:600;min-width:28px;color:${bc.d}">${ml}</span></div></td>`;
       }).join('');
+      const bmCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const bm=byDate[d][b.id].filter(e=>e.type==='milk'&&(e.tags||[]).includes('BM')).reduce((s,e)=>s+(e.ml||0),0);return `<td style="font-weight:600;color:${bc.d}">${bm||'-'}</td>`;}).join('');
       const urCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const n=byDate[d][b.id].filter(e=>e.type==='urine').length;return `<td style="font-weight:600;color:${bc.d}">${n||'-'}</td>`;}).join('');
       const poCells=S.babies.map((b,bi)=>{const bc=getBabyColor(b.id,bi);const n=byDate[d][b.id].filter(e=>e.type==='potty').length;return `<td style="font-weight:600;color:${bc.d}">${n||'-'}</td>`;}).join('');
-      return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}${urCells}${poCells}</tr>`;
+      return `<tr><td style="white-space:nowrap;font-size:13px;color:var(--muted);font-weight:500">${fmtDate(d)}</td>${cells}${bmCells}${urCells}${poCells}</tr>`;
     }).join('');
     const ini=b=>b.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const bThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">${b.emoji} ${ini(b)}</th>`;}).join('');
+    const bmThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">🤱 ${ini(b)}</th>`;}).join('');
     const urThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💧 ${ini(b)}</th>`;}).join('');
     const poThs=S.babies.map((b,i)=>{const bc=getBabyColor(b.id,i);return `<th style="color:${bc.d}">💩 ${ini(b)}</th>`;}).join('');
     const n=dates.length||1;
@@ -1626,7 +1628,7 @@ async function renderSummary(){
       <div class="type-pills" style="padding:0 0 10px">${filterPills}</div>
       <div class="section-title">${S.summaryDays}-Day Feeding (ml)</div>
       <div class="card" style="overflow-x:auto;padding:0"><table class="sum-table" style="margin:0">
-        <thead><tr><th>Date</th>${bThs}${urThs}${poThs}</tr></thead>
+        <thead><tr><th>Date</th>${bThs}${bmThs}${urThs}${poThs}</tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
       <div class="section-title">${S.summaryDays}-Day Insights</div>
